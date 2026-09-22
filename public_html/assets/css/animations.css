@@ -1,0 +1,78 @@
+/* ==========================================================================
+   animations.css — Hanya tiga jenis gerak:
+   1. Reveal (IntersectionObserver) · 2. Glow hover (di components.css)
+   3. Status pulse (titik ONLINE)
+   Latar belakang tidak dianimasikan.
+   ========================================================================== */
+
+/* ---- Reveal ----
+   Keadaan tersembunyi hanya berlaku bila JavaScript aktif (kelas .js pada
+   <html>). Tanpa JavaScript, semua konten langsung terlihat. */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity var(--dur-reveal) var(--ease),
+    transform var(--dur-reveal) var(--ease);
+  will-change: opacity, transform;
+}
+
+.js .reveal.active {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+/* Jeda bertahap untuk elemen yang tampil bersamaan */
+.reveal.delay-1 {
+  transition-delay: 80ms;
+}
+
+.reveal.delay-2 {
+  transition-delay: 160ms;
+}
+
+.reveal.delay-3 {
+  transition-delay: 240ms;
+}
+
+/* ---- Status pulse ---- */
+@keyframes status-pulse {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.6);
+  }
+
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal,
+  .js .reveal.active {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .status__dot::after {
+    animation: none;
+    opacity: 0.35;
+    transform: none;
+  }
+
+  .btn,
+  .btn:hover,
+  .btn--primary:hover,
+  .btn--secondary:hover {
+    transform: none;
+  }
+
+  .nav-toggle__bar,
+  .skip-link {
+    transition: none;
+  }
+}

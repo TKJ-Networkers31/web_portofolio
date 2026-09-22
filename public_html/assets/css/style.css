@@ -1,0 +1,202 @@
+/* ==========================================================================
+   style.css — Gaya khusus halaman Home
+   Dimuat terakhir. Berisi hero, penyesuaian tiap section, dan pengaman layout.
+   ========================================================================== */
+
+/* ---- Hero ---- */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: 0.4;
+  -webkit-mask-image: radial-gradient(
+    ellipse 70% 80% at 30% 40%,
+    #000 0%,
+    transparent 72%
+  );
+  mask-image: radial-gradient(
+    ellipse 70% 80% at 30% 40%,
+    #000 0%,
+    transparent 72%
+  );
+  pointer-events: none;
+}
+
+.hero__title {
+  font-size: var(--fs-display);
+  font-weight: 600;
+  line-height: var(--lh-display);
+  letter-spacing: -0.035em;
+}
+
+.hero__title span {
+  display: block;
+}
+
+.hero__statement {
+  max-width: 46ch;
+  color: var(--text-secondary);
+  font-size: var(--fs-body-lg);
+  line-height: 1.6;
+}
+
+.ambient {
+  width: 100%;
+  max-width: 520px;
+  justify-self: end;
+}
+
+.ambient__focus {
+  margin-top: var(--space-1);
+}
+
+@media (max-width: 1023px) {
+  .ambient {
+    justify-self: start;
+  }
+}
+
+/* ---- Section head ---- */
+.section-sub {
+  max-width: 56ch;
+  color: var(--text-secondary);
+  font-size: var(--fs-body-lg);
+}
+
+/* ---- Selected Work: tautan "lihat semua" (Phase 3.2) ---- */
+.section-cta {
+  margin-top: var(--space-7);
+}
+
+/* ---- About ---- */
+.about-body > * + * {
+  margin-top: var(--space-4);
+}
+
+.about-body__lead {
+  max-width: 56ch;
+  color: var(--text-secondary);
+  font-size: var(--fs-body-lg);
+}
+
+.about-body .meta-list {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+/* ---- Capabilities: menyambung About tanpa jarak ganda ---- */
+#capabilities {
+  padding-top: 0;
+}
+
+/* ---- Ecosystem ---- */
+.eco-panel h3 {
+  color: var(--text);
+}
+
+/* ---- Contact ---- */
+.contact-tile__value {
+  align-self: flex-start;
+}
+
+.contact .btn {
+  min-width: 200px;
+}
+
+/* ---- Footer ---- */
+.footer-copy {
+  margin-bottom: 0;
+}
+
+/* ---- Pengaman: tidak ada horizontal scroll ---- */
+.hero__content,
+.about-body,
+.card,
+.eco-panel,
+.contact-tile {
+  min-width: 0;
+}
+
+.hero__title,
+.project-card__title,
+.contact-tile__label,
+.contact-tile__value {
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Phase 3.2 — Work index & Project detail
+   ========================================================================== */
+
+/* ---- Judul halaman (Work "Selected Work", Project detail title, 404) ---- */
+.page-title {
+  font-size: var(--fs-h1);
+  font-weight: 600;
+  line-height: var(--lh-heading);
+  letter-spacing: -0.03em;
+}
+
+/* ---- Hero kecil (work.php) ---- */
+.page-hero__subtitle {
+  margin-top: var(--space-3);
+  max-width: 56ch;
+  color: var(--text-secondary);
+  font-size: var(--fs-body-lg);
+}
+
+/* ---- Hero project detail (project.php via includes/project-header.php) ---- */
+.project-hero__category {
+  margin-bottom: var(--space-3);
+}
+
+.project-hero__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+}
+
+.project-hero__summary {
+  margin-top: var(--space-4);
+  max-width: 65ch;
+  color: var(--text-secondary);
+  font-size: var(--fs-body-lg);
+}
+
+/* ---- 404 project.php ---- */
+.notfound {
+  max-width: 560px;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.notfound > * + * {
+  margin-top: var(--space-4);
+}
+
+.notfound .btn {
+  margin-top: var(--space-6);
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 767px) {
+  .hero__statement,
+  .section-sub,
+  .about-body__lead,
+  .page-hero__subtitle,
+  .project-hero__summary {
+    font-size: var(--fs-body);
+  }
+
+  .contact .btn {
+    width: 100%;
+  }
+}

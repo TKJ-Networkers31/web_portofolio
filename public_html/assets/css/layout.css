@@ -1,0 +1,411 @@
+/* ==========================================================================
+   layout.css — Base, container, header/footer layout, grid tiap section
+   ========================================================================== */
+
+/* ---- Base ---- */
+html {
+  scroll-padding-top: calc(var(--header-h) + var(--space-3));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+
+main {
+  display: block;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--text);
+  line-height: var(--lh-heading);
+}
+
+h2 {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+h3 {
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* ---- Container ---- */
+.container {
+  width: 100%;
+  max-width: calc(var(--container) + (var(--gutter) * 2));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* ---- Header ---- */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  min-height: var(--header-h);
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  backdrop-filter: blur(12px) saturate(140%);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .site-header {
+    background: var(--header-bg-solid);
+  }
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--header-h);
+}
+
+.nav-panel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin-left: auto;
+}
+
+/* ---- Section ---- */
+.section {
+  padding-block: var(--section-y);
+}
+
+.section--alt {
+  background: var(--surface);
+  border-block: 1px solid var(--border);
+}
+
+.section-head {
+  max-width: 640px;
+  margin-bottom: var(--space-8);
+}
+
+.section-head > * + * {
+  margin-top: var(--space-3);
+}
+
+/* ---- Hero ---- */
+.hero {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  min-height: 90vh;
+  min-height: 90svh;
+  padding-block: var(--space-9);
+}
+
+.hero__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: var(--space-9);
+  align-items: center;
+  width: 100%;
+}
+
+.hero__content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* ---- Selected Work ---- */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+/* ---- About ---- */
+.about-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: var(--space-9);
+  align-items: start;
+}
+
+/* ---- Capabilities ---- */
+.capability-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+/* ---- Ecosystem ---- */
+.ecosystem-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+}
+
+/* ---- Contact ---- */
+.contact {
+  max-width: 880px;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.contact .section-head {
+  margin-inline: auto;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-7);
+  text-align: left;
+}
+
+/* ==========================================================================
+   Phase 3.2 — Work index & Project detail (struktur)
+   ========================================================================== */
+
+/* ---- Page hero (hero kecil, work.php) ---- */
+.page-hero {
+  padding-block: var(--space-9) var(--space-8);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---- Project hero (project.php, lewat includes/project-header.php) ---- */
+.project-hero {
+  padding-block: var(--space-8) var(--space-7);
+  border-bottom: 1px solid var(--border);
+}
+
+.project-hero__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+/* ---- Kolom baca case study (Overview .. Lessons Learned) ---- */
+.detail {
+  max-width: 760px;
+}
+
+.detail-block + .detail-block {
+  margin-top: var(--space-8);
+}
+
+.detail-block h2 {
+  margin-bottom: var(--space-4);
+}
+
+.detail-block p {
+  color: var(--text-secondary);
+}
+
+.detail-block p + p {
+  margin-top: var(--space-3);
+}
+
+.detail-block .topology {
+  margin-top: var(--space-5);
+}
+
+.detail-block .tag-list {
+  margin-top: 0;
+}
+
+/* ---- Overview: key-value grid ---- */
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-6);
+}
+
+.overview-grid dt {
+  margin-bottom: var(--space-2);
+}
+
+/* ---- Related Projects: 2 kolom di desktop (bukan 3) ---- */
+@media (min-width: 1024px) {
+  .project-grid--related {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---- Footer ---- */
+.site-footer {
+  border-top: 1px solid var(--border);
+  padding-block: var(--space-8) var(--space-5);
+}
+
+.footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.footer-copy {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+/* Tablet dan di bawahnya: hero satu kolom */
+@media (max-width: 1023px) {
+  .hero__inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+
+  .about-grid {
+    gap: var(--space-8);
+  }
+}
+
+/* Tablet: 2 kolom project, kartu ketiga selebar baris */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .project-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-grid > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Mobile */
+@media (max-width: 767px) {
+  .nav-panel {
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-4);
+    margin-left: 0;
+    padding-block: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--border);
+  }
+
+  .header-inner {
+    flex-wrap: wrap;
+    gap: 0 var(--space-3);
+  }
+
+  /* Dengan JavaScript: menu menjadi dropdown di bawah header */
+  .js .nav-panel {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    padding-inline: var(--gutter);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .js .nav-panel.is-open {
+    display: flex;
+  }
+
+  /* Tanpa JavaScript: header tidak sticky agar tidak memakan layar */
+  html:not(.js) .site-header {
+    position: static;
+  }
+
+  .hero {
+    min-height: auto;
+    padding-block: var(--space-8) var(--space-9);
+  }
+
+  .hero__content {
+    gap: var(--space-4);
+  }
+
+  .section-head {
+    margin-bottom: var(--space-7);
+  }
+
+  .project-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .about-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-7);
+  }
+
+  .capability-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ecosystem-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contact-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+ .footer-inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* ---- Phase 3.2: Work index & Project detail ---- */
+  .page-hero {
+    padding-block: var(--space-7) var(--space-6);
+  }
+
+  .project-hero {
+    padding-block: var(--space-7) var(--space-6);
+  }
+
+  .project-hero__top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

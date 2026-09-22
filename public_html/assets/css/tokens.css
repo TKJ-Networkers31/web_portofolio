@@ -1,0 +1,110 @@
+/* ==========================================================================
+   tokens.css — Design tokens
+   Dark Technical Minimalism · portofolio.mohamadlingga.my.id
+   ========================================================================== */
+
+/*
+  FONT
+  IBM Plex Sans (teks) dan IBM Plex Mono (metadata).
+  Build ini tidak membundel file font (tanpa CDN, struktur folder tetap).
+  Jika font terpasang di perangkat, font itu dipakai; jika tidak, fallback
+  system font di bawah. Untuk self-host nanti, tambahkan @font-face di sini
+  yang menunjuk ke file WOFF2 lokal dengan font-display: swap.
+*/
+
+:root {
+  color-scheme: dark;
+
+  /* ---- Color ---- */
+  --bg: #060709;
+  --surface: #0b0d10;
+  --card: #0f1217;
+  --surface-elevated: #151a21;
+
+  --border: #1f252d;
+  --border-strong: #2e3742;
+
+  --text: #eef2f6;
+  --text-secondary: #a3adba;
+  --text-muted: #7c8796;
+
+  --accent: #3db8f5;
+  --accent-bright: #7ad3ff;
+
+  --success: #3dd68c;
+  --warning: #f5b94a;
+  --error: #f2727a;
+
+  /* Turunan warna (glow dipakai sebagai feedback, bukan dekorasi) */
+  --accent-glow: rgba(61, 184, 245, 0.35);
+  --accent-glow-soft: rgba(61, 184, 245, 0.16);
+  --success-glow: rgba(61, 214, 140, 0.45);
+  --warning-line: rgba(245, 185, 74, 0.45);
+  --header-bg: rgba(6, 7, 9, 0.72);
+  --header-bg-solid: rgba(6, 7, 9, 0.96);
+
+  /* ---- Radius ---- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* ---- Spacing (8pt) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 40px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 80px;
+  --space-10: 96px;
+  --space-11: 120px;
+
+  /* ---- Typography ---- */
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --fs-display: clamp(2.75rem, 1.45rem + 5.6vw, 5.5rem);
+  --fs-h1: clamp(2.25rem, 1.5rem + 3vw, 3.5rem);
+  --fs-h2: clamp(1.75rem, 1.3rem + 1.7vw, 2.5rem);
+  --fs-h3: 1.25rem;
+  --fs-body: 1rem;
+  --fs-body-lg: 1.125rem;
+  --fs-small: 0.875rem;
+  --fs-meta: 0.8125rem;
+
+  --lh-display: 1.02;
+  --lh-heading: 1.15;
+  --lh-body: 1.65;
+
+  /* ---- Layout ---- */
+  --container: 1200px;
+  --gutter: var(--space-4);
+  --header-h: 72px;
+  --section-y: var(--space-11);
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --dur-fast: 160ms;
+  --dur-reveal: 560ms;
+
+  /* ---- Layer ---- */
+  --z-header: 100;
+  --z-skip: 200;
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --section-y: var(--space-10);
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --gutter: var(--space-3);
+    --section-y: var(--space-9);
+  }
+}
