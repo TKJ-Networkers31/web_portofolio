@@ -5,15 +5,10 @@ declare(strict_types=1);
 /**
  * includes/functions.php
  *
- * Helper procedural untuk data project (Phase 3.2). Prosedural sesuai
- * instruksi brief ("Jangan OOP"). data/projects.php tetap satu-satunya
- * sumber data — file ini hanya berisi fungsi yang membaca dan mengolahnya.
- *
- * File baru di luar 5 file yang diminta brief, tetapi brief sendiri
- * mengizinkan ini secara eksplisit: "Letakkan di data/projects.php atau
- * helper yang sesuai." Dipisah dari data/projects.php supaya file data
- * tetap murni data (mengikuti FORMAT yang dicontohkan brief persis), dan
- * supaya work.php / project.php cukup satu require untuk semua helper.
+ * Helper procedural untuk data project (Phase 3.2 + 3.3 pretty URL).
+ * Prosedural sesuai instruksi brief ("Jangan OOP"). data/projects.php
+ * tetap satu-satunya sumber data — file ini hanya berisi fungsi yang
+ * membaca dan mengolahnya.
  */
 
 if (!defined('SITE_BOOT')) {
@@ -81,6 +76,18 @@ if (!function_exists('getRelatedProjects')) {
         ));
 
         return array_slice($related, 0, $limit);
+    }
+}
+
+if (!function_exists('projectUrl')) {
+    /**
+     * URL kanonik pretty untuk satu project: /project/{slug}
+     * Satu-satunya tempat format URL project dibentuk (Phase 3.3), dipakai
+     * oleh includes/project-card.php dan project.php (canonical/OG).
+     */
+    function projectUrl(string $slug): string
+    {
+        return '/project/' . rawurlencode($slug);
     }
 }
 

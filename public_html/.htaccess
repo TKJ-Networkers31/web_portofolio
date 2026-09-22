@@ -1,0 +1,36 @@
+# ==========================================================================
+# .htaccess — Phase 3.2 finalization
+# Pretty URL untuk project detail + hardening dasar.
+# ==========================================================================
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # ---- Normalisasi trailing slash ----
+  # /project/{slug}/  ->  /project/{slug}   (301, canonical tanpa trailing slash)
+  RewriteCond %{REQUEST_URI} ^/project/[a-z0-9-]+/$
+  RewriteRule ^project/([a-z0-9-]+)/$ /project/$1 [L,R=301]
+
+  # ---- Pretty URL ----
+  # /project/{slug}  ->  project.php?slug={slug}   (internal rewrite, bukan redirect)
+  RewriteRule ^project/([a-z0-9-]+)$ project.php?slug=$1 [L,QSA]
+</IfModule>
+
+# ==========================================================================
+# Security hardening
+# ==========================================================================
+
+# Jangan tampilkan directory listing.
+Options -Indexes
+
+# includes/ dan data/ sudah self-protect lewat SITE_BOOT check (403), tapi
+# blokir juga di level webserver sebagai defense-in-depth.
+<IfModule mod_rewrite.c>
+  RewriteRule ^(includes|data)/ - [F,L]
+</IfModule>
+
+# Cegah akses langsung ke file konfigurasi/dotfile lain jika ada nanti.
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
