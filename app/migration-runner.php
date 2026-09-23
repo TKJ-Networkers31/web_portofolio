@@ -35,8 +35,20 @@ if (!function_exists('runMigrations')) {
             throw new RuntimeException("Could not read schema file: {$schemaFile}");
         }
 
-        // Schema files contain no semicolons inside string literals, so a
-        // simple split is safe and keeps this dependency-free.
+        // Strip full-line SQL comments (lines starting with "--") BEFORE
+        // splitting on semicolons. This matters because a comment can
+        // contain an ordinary English semicolon (e.g. "this phase; the
+        // rest are...") which must never be mistaken for a statement
+        // boundary.
+        $codeLines = [];
+        foreach (preg_split('/\r\n|\r|\n/', $sql) as $line) {
+            if (str_starts_with(ltrim($line), '--')) {
+                continue;
+            }
+            $codeLines[] = $line;
+        }
+        $sql = implode("\n", $codeLines);
+
         $statements = array_filter(array_map('trim', explode(';', $sql)));
 
         $pdo->beginTransaction();
@@ -44,7 +56,7 @@ if (!function_exists('runMigrations')) {
         try {
             $count = 0;
             foreach ($statements as $statement) {
-                if ($statement === '' || str_starts_with($statement, '--')) {
+                if ($statement === '') {
                     continue;
                 }
                 $pdo->exec($statement);
