@@ -1,0 +1,184 @@
+/* ==========================================================================
+   admin.css — Minimal admin shell styling.
+   Built entirely on tokens.css variables from the public site so the look
+   stays consistent; does not touch or redesign the public portfolio.
+   ========================================================================== */
+
+.admin-body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.admin-shell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.admin-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.admin-sidebar__brand {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.admin-sidebar nav ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.admin-sidebar nav a,
+.admin-nav__disabled {
+  display: block;
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-small);
+}
+
+.admin-sidebar nav a {
+  color: var(--text-secondary);
+}
+
+.admin-sidebar nav a:hover,
+.admin-sidebar nav a[aria-current="page"] {
+  color: var(--text);
+  background: var(--card);
+}
+
+.admin-nav__disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.admin-main {
+  padding: var(--space-6) var(--space-5);
+}
+
+.admin-main--auth {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--space-4);
+}
+
+/* ---- Auth card ---- */
+.admin-auth__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 360px;
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--fs-small);
+  color: var(--text-secondary);
+}
+
+.admin-field input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-body);
+}
+
+.admin-field input:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+}
+
+.admin-alert {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-md);
+  color: var(--error);
+  font-size: var(--fs-small);
+}
+
+.admin-auth__submit {
+  width: 100%;
+}
+
+/* ---- Dashboard ---- */
+.admin-dashboard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.admin-dashboard__note {
+  max-width: 65ch;
+  margin-bottom: var(--space-6);
+  color: var(--text-secondary);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.admin-card {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+
+.admin-card__label {
+  color: var(--text-secondary);
+  font-size: var(--fs-small);
+}
+
+.admin-card__count {
+  margin-top: var(--space-2);
+  font-size: var(--fs-h3);
+  font-weight: 600;
+}
+
+.admin-card__status {
+  margin-top: var(--space-3);
+}
+
+@media (max-width: 767px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .admin-sidebar nav ul {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
