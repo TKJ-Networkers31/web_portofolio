@@ -23,6 +23,18 @@ declare(strict_types=1);
  * (lewat getFeaturedProjects()) dan me-render tiap kartu lewat
  * includes/project-card.php, alih-alih array dummy terpisah — supaya Home
  * dan Work selalu menampilkan project yang sama persis dari satu sumber.
+ *
+ * PHASE 4.2: hero statement, About lead, dan Location sekarang membaca
+ * dari tabel `profile` lewat getPublicProfile() jika baris profile sudah
+ * diisi lewat /admin/profile.php. Jika belum ada / gagal dibaca, teks
+ * placeholder Phase 3.1 tetap tampil persis seperti sebelumnya.
+ *
+ * PHASE 4.3: Education di section About sekarang membaca dari tabel
+ * `education` lewat getEducationList() jika sudah ada entri lewat
+ * /admin/education.php. Experience TIDAK diintegrasikan ke publik pada
+ * fase ini karena belum ada section Experience di Phase 3 — CRUD-nya
+ * sudah aktif di admin, tapi menunggu section publik dibuat di fase lain
+ * supaya tidak melakukan redesign besar di luar scope.
  */
 
 define('SITE_BOOT', true);
@@ -38,6 +50,22 @@ $focusAreas = ['Network Engineering', 'Infrastructure', 'AI Systems'];
 
 /* Project featured saja yang tampil di Selected Work (data/projects.php). */
 $featuredProjects = getFeaturedProjects();
+
+/* Phase 4.2: profile dari tabel `profile`, dengan fallback ke teks Phase 3.1. */
+$publicProfile = getPublicProfile();
+
+$heroStatement = ($publicProfile['headline'] ?? '') !== ''
+    ? $publicProfile['headline']
+    : 'Building reliable network infrastructure, automation, and intelligent systems.';
+
+$aboutLead = ($publicProfile['bio'] ?? '') !== ''
+    ? $publicProfile['bio']
+    : "I'm a vocational student focusing on network engineering, infrastructure, automation, and AI systems.";
+
+$profileLocation = ($publicProfile['location'] ?? '') !== '' ? $publicProfile['location'] : null;
+
+/* Phase 4.3: education dari tabel `education`, dengan fallback ke placeholder Phase 3.1. */
+$educationEntries = getEducationList();
 
 $capabilities = [
     'Network Engineering',
@@ -107,8 +135,8 @@ require __DIR__ . '/includes/header.php';
 <?php endforeach; ?>
           </ul>
 
-          <!-- Statement sementara. Ganti dengan copy final dari owner. -->
-          <p class="hero__statement reveal delay-2">Building reliable network infrastructure, automation, and intelligent systems.</p>
+          <!-- Phase 4.2: dari profile.headline jika sudah diisi, jika tidak fallback Phase 3.1. -->
+          <p class="hero__statement reveal delay-2"><?= e($heroStatement) ?></p>
 
           <div class="hero__actions reveal delay-3">
             <a class="btn btn--primary" href="work.php">View Work</a>
@@ -191,17 +219,35 @@ require __DIR__ . '/includes/header.php';
 
         <div class="about-body reveal delay-1">
           <h2 id="about-title">About</h2>
-          <!-- Teks sementara. Ganti dengan profil final dari owner. -->
-          <p class="about-body__lead">I'm a vocational student focusing on network engineering, infrastructure, automation, and AI systems.</p>
+          <!-- Phase 4.2: dari profile.bio jika sudah diisi, jika tidak fallback Phase 3.1. -->
+          <p class="about-body__lead"><?= e($aboutLead) ?></p>
 
           <dl class="meta-list">
             <div>
               <dt class="meta">Location</dt>
-              <dd><span class="placeholder">[CONTENT REQUIRED]</span></dd>
+              <dd><?= $profileLocation !== null ? e($profileLocation) : '<span class="placeholder">[CONTENT REQUIRED]</span>' ?></dd>
             </div>
             <div>
               <dt class="meta">Education</dt>
-              <dd><span class="placeholder">[CONTENT REQUIRED]</span></dd>
+              <dd>
+<?php if (empty($educationEntries)): ?>
+                <span class="placeholder">[CONTENT REQUIRED]</span>
+<?php else: ?>
+<?php foreach ($educationEntries as $index => $edu): ?>
+<?php
+    $degreeField = trim(
+        (string) ($edu['degree'] ?? '')
+        . (($edu['degree'] ?? '') !== '' && ($edu['field'] ?? '') !== '' ? ' in ' : '')
+        . (string) ($edu['field'] ?? '')
+    );
+    $line = $degreeField !== ''
+        ? $degreeField . ' &mdash; ' . e((string) $edu['institution'])
+        : e((string) $edu['institution']);
+?>
+<?= $degreeField !== '' ? e($degreeField) . ' &mdash; ' . e((string) $edu['institution']) : e((string) $edu['institution']) ?><?= $index < count($educationEntries) - 1 ? '<br>' : '' ?>
+<?php endforeach; ?>
+<?php endif; ?>
+              </dd>
             </div>
           </dl>
         </div>

@@ -5,10 +5,11 @@ declare(strict_types=1);
 /**
  * includes/functions.php
  *
- * Helper procedural untuk data project (Phase 3.2 + 3.3 pretty URL).
- * Prosedural sesuai instruksi brief ("Jangan OOP"). data/projects.php
- * tetap satu-satunya sumber data — file ini hanya berisi fungsi yang
- * membaca dan mengolahnya.
+ * Helper procedural untuk data project (Phase 3.2 + 3.3 pretty URL), dan
+ * untuk profile + education (Phase 4.2 / 4.3, read-only untuk sisi
+ * publik). Prosedural sesuai instruksi brief ("Jangan OOP").
+ * data/projects.php tetap satu-satunya sumber data project — file ini
+ * hanya berisi fungsi yang membaca dan mengolahnya.
  */
 
 if (!defined('SITE_BOOT')) {
@@ -234,5 +235,122 @@ SVG;
 </svg>
 SVG;
         }
+    }
+}
+
+if (!function_exists('getDbForPublicRead')) {
+    /**
+     * Phase 4.2/4.3 — bootstrap koneksi DB untuk sisi publik tanpa
+     * memaksa file caller melakukan require manual. Mengembalikan null
+     * (bukan melempar) jika config atau tabel tidak tersedia, supaya
+     * halaman Phase 3 selalu degrade dengan aman ke fallback statis.
+     */
+    function getDbForPublicRead(): ?PDO
+    {
+        static $pdo = false; // false = belum pernah dicoba
+
+        if ($pdo !== false) {
+            return $pdo;
+        }
+
+        $pdo = null;
+
+        try {
+            $configFile = __DIR__ . '/../../config/config.php';
+            $dbFile     = __DIR__ . '/../../config/database.php';
+
+            if (!is_file($configFile) || !is_file($dbFile)) {
+                return $pdo;
+            }
+
+            require_once $configFile;
+            require_once $dbFile;
+
+            if (!function_exists('db')) {
+                return $pdo;
+            }
+
+            $pdo = db();
+        } catch (Throwable $e) {
+            $pdo = null;
+        }
+
+        return $pdo;
+    }
+}
+
+if (!function_exists('getPublicProfile')) {
+    /**
+     * Phase 4.2 — baca satu-satunya baris `profile` untuk sisi publik.
+     * Kegagalan apa pun (config belum ada, tabel belum ada, DB mati)
+     * degrade ke null supaya halaman Phase 3 tetap render persis seperti
+     * sebelum Phase 4.2.
+     */
+    function getPublicProfile(): ?array
+    {
+        static $profile = false;
+
+        if ($profile !== false) {
+            return $profile;
+        }
+
+        $profile = null;
+
+        $pdo = getDbForPublicRead();
+        if ($pdo === null) {
+            return $profile;
+        }
+
+        try {
+            $stmt = $pdo->query(
+                'SELECT full_name, headline, bio, location, photo_path
+                 FROM profile WHERE id = 1 LIMIT 1'
+            );
+            $row = $stmt ? $stmt->fetch() : null;
+
+            $profile = $row ?: null;
+        } catch (Throwable $e) {
+            $profile = null;
+        }
+
+        return $profile;
+    }
+}
+
+if (!function_exists('getEducationList')) {
+    /**
+     * Phase 4.3 — baca seluruh baris `education` untuk sisi publik,
+     * terurut sesuai sort_order lalu id. Kegagalan apa pun degrade ke
+     * array kosong, sehingga index.php tetap bisa fallback ke placeholder
+     * Phase 3.1 tanpa error.
+     */
+    function getEducationList(): array
+    {
+        static $rows = null;
+
+        if ($rows !== null) {
+            return $rows;
+        }
+
+        $rows = [];
+
+        $pdo = getDbForPublicRead();
+        if ($pdo === null) {
+            return $rows;
+        }
+
+        try {
+            $stmt = $pdo->query(
+                'SELECT institution, degree, field, start_date, end_date
+                 FROM education
+                 ORDER BY sort_order ASC, id ASC'
+            );
+
+            $rows = $stmt ? $stmt->fetchAll() : [];
+        } catch (Throwable $e) {
+            $rows = [];
+        }
+
+        return $rows;
     }
 }

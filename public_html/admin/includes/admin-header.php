@@ -15,8 +15,9 @@ if (!defined('CMS_BOOT')) {
     exit('Forbidden');
 }
 
-$pageTitle = $pageTitle ?? 'Admin';
-$loggedIn  = function_exists('isAdminLoggedIn') && isAdminLoggedIn();
+$pageTitle    = $pageTitle ?? 'Admin';
+$loggedIn     = function_exists('isAdminLoggedIn') && isAdminLoggedIn();
+$adminScript  = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
 ?>
 <!doctype html>
 <html lang="en">
@@ -36,13 +37,13 @@ $loggedIn  = function_exists('isAdminLoggedIn') && isAdminLoggedIn();
       <p class="admin-sidebar__brand">ML <span class="meta">Admin</span></p>
       <nav aria-label="Admin sections">
         <ul role="list">
-          <li><a href="index.php" aria-current="page">Dashboard</a></li>
-          <li><span class="admin-nav__disabled" aria-disabled="true">Profile</span></li>
-          <li><span class="admin-nav__disabled" aria-disabled="true">Education</span></li>
-          <li><span class="admin-nav__disabled" aria-disabled="true">Experience</span></li>
-          <li><span class="admin-nav__disabled" aria-disabled="true">Skills</span></li>
-          <li><span class="admin-nav__disabled" aria-disabled="true">Certifications</span></li>
-          <li><span class="admin-nav__disabled" aria-disabled="true">Projects</span></li>
+          <li><a href="index.php"<?= $adminScript === 'index.php' ? ' aria-current="page"' : '' ?>>Dashboard</a></li>
+          <li><a href="profile.php"<?= $adminScript === 'profile.php' ? ' aria-current="page"' : '' ?>>Profile</a></li>
+          <li><a href="education.php"<?= $adminScript === 'education.php' ? ' aria-current="page"' : '' ?>>Education</a></li>
+          <li><a href="experience.php"<?= $adminScript === 'experience.php' ? ' aria-current="page"' : '' ?>>Experience</a></li>
+          <li><a href="skills.php"<?= $adminScript === 'skills.php' ? ' aria-current="page"' : '' ?>>Skills</a></li>
+          <li><a href="certifications.php"<?= $adminScript === 'certifications.php' ? ' aria-current="page"' : '' ?>>Certifications</a></li>
+          <li><a href="projects.php"<?= ($adminScript === 'projects.php' || $adminScript === 'project-media.php') ? ' aria-current="page"' : '' ?>>Projects</a></li>
           <li><span class="admin-nav__disabled" aria-disabled="true">Contact</span></li>
           <li><span class="admin-nav__disabled" aria-disabled="true">CV</span></li>
           <li><span class="admin-nav__disabled" aria-disabled="true">Media</span></li>

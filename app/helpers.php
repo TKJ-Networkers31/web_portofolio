@@ -22,3 +22,25 @@ if (!function_exists('e')) {
         return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 }
+
+if (!function_exists('isValidDateString')) {
+    /**
+     * Phase 4.3 — validate an optional "YYYY-MM-DD" date string.
+     * Empty string is treated as valid (field is optional); a non-empty
+     * string must be a real calendar date in that exact format.
+     */
+    function isValidDateString(string $value): bool
+    {
+        if ($value === '') {
+            return true;
+        }
+
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return false;
+        }
+
+        [$year, $month, $day] = array_map('intval', explode('-', $value));
+
+        return checkdate($month, $day, $year);
+    }
+}
