@@ -353,4 +353,42 @@ if (!function_exists('getEducationList')) {
 
         return $rows;
     }
+    if (!function_exists('getPublicContacts')) {
+        /**
+         * Phase 4.6 — read all visible rows from `contacts` (Contact and
+         * Social admin pages share this one table) for the public site.
+         * Degrades to an empty array on any failure so index.php's dummy
+         * fallback still renders exactly as before Phase 4.6.
+         */
+        function getPublicContacts(): array
+        {
+            static $rows = null;
+
+            if ($rows !== null) {
+                return $rows;
+            }
+
+            $rows = [];
+
+            $pdo = getDbForPublicRead();
+            if ($pdo === null) {
+                return $rows;
+            }
+
+            try {
+                $stmt = $pdo->query(
+                    'SELECT label, type, value, icon
+                    FROM contacts
+                    WHERE is_visible = 1
+                    ORDER BY sort_order ASC, id ASC'
+                );
+
+                $rows = $stmt ? $stmt->fetchAll() : [];
+            } catch (Throwable $e) {
+                $rows = [];
+            }
+
+            return $rows;
+        }
+    }
 }

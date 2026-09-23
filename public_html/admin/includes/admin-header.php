@@ -44,9 +44,10 @@ $adminScript  = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
           <li><a href="skills.php"<?= $adminScript === 'skills.php' ? ' aria-current="page"' : '' ?>>Skills</a></li>
           <li><a href="certifications.php"<?= $adminScript === 'certifications.php' ? ' aria-current="page"' : '' ?>>Certifications</a></li>
           <li><a href="projects.php"<?= ($adminScript === 'projects.php' || $adminScript === 'project-media.php') ? ' aria-current="page"' : '' ?>>Projects</a></li>
-          <li><span class="admin-nav__disabled" aria-disabled="true">Contact</span></li>
-          <li><span class="admin-nav__disabled" aria-disabled="true">CV</span></li>
-          <li><span class="admin-nav__disabled" aria-disabled="true">Media</span></li>
+          <li><a href="contact.php"<?= $adminScript === 'contact.php' ? ' aria-current="page"' : '' ?>>Contact</a></li>
+          <li><a href="social.php"<?= $adminScript === 'social.php' ? ' aria-current="page"' : '' ?>>Social</a></li>
+          <li><a href="cv.php"<?= $adminScript === 'cv.php' ? ' aria-current="page"' : '' ?>>CV</a></li>
+          <li><a href="media.php"<?= $adminScript === 'media.php' ? ' aria-current="page"' : '' ?>>Media</a></li>
         </ul>
       </nav>
       <a class="link-text" href="../index.php">&larr; View site</a>

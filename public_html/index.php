@@ -104,11 +104,37 @@ $icons = [
     'linkedin' => '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 11v5M8 8v.01M12 16v-5M12 13.5c0-1.5 1-2.5 2.5-2.5s2.5 1 2.5 2.5V16"/>',
 ];
 
-$contacts = [
-    ['label' => 'Email',    'icon' => 'mail'],
-    ['label' => 'GitHub',   'icon' => 'github'],
-    ['label' => 'LinkedIn', 'icon' => 'linkedin'],
-];
+/* Phase 4.6: contacts dari tabel `contacts` lewat getPublicContacts(),
+ * fallback ke placeholder Phase 3.1 jika belum ada baris visible. */
+$dbContacts = getPublicContacts();
+
+if (!empty($dbContacts)) {
+    $contacts = array_map(static function (array $row): array {
+        $type  = (string) ($row['type'] ?? '');
+        $value = (string) ($row['value'] ?? '');
+
+        $href = match (true) {
+            $type === 'email'                            => 'mailto:' . $value,
+            in_array($type, ['phone', 'whatsapp'], true)  => 'tel:' . preg_replace('/\s+/', '', $value),
+            default                                       => $value,
+        };
+
+        return [
+            'label'    => (string) ($row['label'] ?? ''),
+            'icon'     => (string) ($row['icon'] ?? '') !== '' ? (string) $row['icon'] : 'mail',
+            'value'    => $value,
+            'href'     => $href,
+            'external' => !in_array($type, ['email', 'phone', 'whatsapp', 'address'], true),
+            'dummy'    => false,
+        ];
+    }, $dbContacts);
+} else {
+    $contacts = [
+        ['label' => 'Email',    'icon' => 'mail',     'dummy' => true],
+        ['label' => 'GitHub',   'icon' => 'github',   'dummy' => true],
+        ['label' => 'LinkedIn', 'icon' => 'linkedin', 'dummy' => true],
+    ];
+}
 
 require __DIR__ . '/includes/header.php';
 ?>
@@ -325,6 +351,7 @@ require __DIR__ . '/includes/header.php';
         <ul class="contact-grid reveal" role="list">
 <?php foreach ($contacts as $contact): ?>
           <li>
+<?php if (!empty($contact['dummy'])): ?>
             <!-- DUMMY: tautan final menunggu data owner -->
             <a class="contact-tile" href="#" data-dummy aria-disabled="true">
               <span class="contact-tile__icon" aria-hidden="true">
@@ -335,6 +362,18 @@ require __DIR__ . '/includes/header.php';
                 <span class="contact-tile__value placeholder">[CONTENT REQUIRED]</span>
               </span>
             </a>
+<?php else: ?>
+            <!-- Phase 4.6: dari tabel `contacts` lewat getPublicContacts() -->
+            <a class="contact-tile" href="<?= e($contact['href']) ?>"<?= $contact['external'] ? ' target="_blank" rel="noopener noreferrer"' : '' ?>>
+              <span class="contact-tile__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><?= $icons[$contact['icon']] ?? $icons['mail'] ?></svg>
+              </span>
+              <span class="contact-tile__body">
+                <span class="contact-tile__label"><?= e($contact['label']) ?></span>
+                <span class="contact-tile__value"><?= e($contact['value']) ?></span>
+              </span>
+            </a>
+<?php endif; ?>
           </li>
 <?php endforeach; ?>
         </ul>
