@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * project.php — Project detail (Phase 3.2 + 3.3 pretty URL)
+ * project.php — Project detail (Phase 3.2 + 3.3 pretty URL + Phase 4.9 DB)
  * portofolio.mohamadlingga.my.id/project/{slug}
  *
  * Slug diambil dari ?slug= — baik lewat akses langsung (legacy) maupun
@@ -18,6 +18,12 @@ declare(strict_types=1);
  * berbeda untuk konten yang sama (SEO), tanpa redirect loop — dideteksi
  * lewat REQUEST_URI: rewrite internal .htaccess tidak mengubah REQUEST_URI
  * menjadi project.php, hanya akses langsung yang mengandungnya.
+ *
+ * Phase 4.9: sumber data project sekarang lewat getProjectBySlug(), yang
+ * membaca MySQL (tabel `projects`) dengan fallback otomatis ke
+ * data/projects.php bila DB kosong/gagal — lihat includes/functions.php.
+ * Bentuk array $project identik apa pun sumbernya, jadi seluruh logika
+ * di bawah (404, redirect, SEO, breadcrumb, related) tidak berubah.
  */
 
 define('SITE_BOOT', true);
@@ -25,7 +31,7 @@ require __DIR__ . '/includes/functions.php';
 
 $slug        = isset($_GET['slug']) ? (string) $_GET['slug'] : '';
 $isSlugValid = $slug !== '' && preg_match('/^[a-z0-9-]+$/', $slug) === 1;
-$project     = $isSlugValid ? findProjectBySlug($slug) : null;
+$project     = $isSlugValid ? getProjectBySlug($slug) : null;
 
 /* ===================== 404: PROJECT TIDAK DITEMUKAN ===================== */
 if ($project === null) {
@@ -72,6 +78,17 @@ if ($isLegacyAccess) {
 
 /* ===================== PROJECT DITEMUKAN ===================== */
 $related = getRelatedProjects($project['slug'], 2);
+
+/*
+ * Phase 4.9: gallery hanya diambil jika project ini berasal dari MySQL
+ * ('_source' === 'db') — lihat catatan di getProjectMedia() pada
+ * includes/functions.php. Project hasil fallback data/projects.php
+ * memakai id statis 1/2/3 yang tidak boleh diasumsikan berkorespondensi
+ * dengan project_media.project_id milik baris DB yang mungkin masih ada.
+ */
+$media = ($project['_source'] ?? null) === 'db' && !empty($project['id'])
+    ? getProjectMedia((int) $project['id'])
+    : [];
 
 $pageTitle       = $project['title'] . ' · Mohamad Lingga Syahputra';
 $pageDescription = $project['summary'];
@@ -122,6 +139,31 @@ require __DIR__ . '/includes/project-header.php';
           <p><?= e($project['approach']) ?></p>
           <?= projectTopologySvg($project['slug']) ?>
         </div>
+
+<?php if (!empty($media)): ?>
+        <!-- ---- Gallery (Phase 4.9, project_media) ----
+             Deliberately unstyled: no new CSS classes/grid added, to
+             stay inside the "no UI redesign" scope lock. Plain stacked
+             list; a future phase can style it if a gallery layout is
+             wanted. -->
+        <div class="detail-block reveal">
+          <h2>Gallery</h2>
+          <ul role="list">
+<?php foreach ($media as $item): ?>
+            <li>
+<?php if (($item['type'] ?? 'image') === 'image'): ?>
+              <img src="<?= e((string) $item['path']) ?>" alt="<?= e((string) ($item['alt_text'] ?? '')) ?>">
+<?php else: ?>
+              <a class="link-text" href="<?= e((string) $item['path']) ?>" target="_blank" rel="noopener noreferrer"><?= e((string) ($item['alt_text'] !== '' ? $item['alt_text'] : $item['path'])) ?></a>
+<?php endif; ?>
+<?php if (!empty($item['alt_text'])): ?>
+              <p class="meta"><?= e((string) $item['alt_text']) ?></p>
+<?php endif; ?>
+            </li>
+<?php endforeach; ?>
+          </ul>
+        </div>
+<?php endif; ?>
 
         <!-- ---- Implementation ---- -->
         <div class="detail-block reveal">

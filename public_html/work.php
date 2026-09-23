@@ -13,7 +13,7 @@ declare(strict_types=1);
 define('SITE_BOOT', true);
 require __DIR__ . '/includes/functions.php';
 
-$projects = loadProjects();
+$projects = getProjects();
 
 $pageTitle       = 'Selected Work · Mohamad Lingga Syahputra';
 $pageDescription = 'A collection of networking, infrastructure, automation, and AI projects.';

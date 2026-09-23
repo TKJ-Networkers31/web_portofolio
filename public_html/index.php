@@ -67,14 +67,22 @@ $profileLocation = ($publicProfile['location'] ?? '') !== '' ? $publicProfile['l
 /* Phase 4.3: education dari tabel `education`, dengan fallback ke placeholder Phase 3.1. */
 $educationEntries = getEducationList();
 
-$capabilities = [
-    'Network Engineering',
-    'MikroTik',
-    'Cisco',
-    'Linux',
-    'Automation',
-    'AI Systems',
-];
+/* Phase 4.8: capabilities dari tabel `skills` lewat getSkillsList(),
+ * fallback ke daftar statis Phase 3.1 jika tabel kosong atau DB gagal. */
+$dbSkills = getSkillsList();
+
+$capabilities = !empty($dbSkills)
+    ? array_map(static function (array $row): string {
+        return (string) ($row['name'] ?? '');
+    }, $dbSkills)
+    : [
+        'Network Engineering',
+        'MikroTik',
+        'Cisco',
+        'Linux',
+        'Automation',
+        'AI Systems',
+    ];
 
 $ecosystem = [
     [

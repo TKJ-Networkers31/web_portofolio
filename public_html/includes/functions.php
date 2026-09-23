@@ -54,7 +54,7 @@ if (!function_exists('getFeaturedProjects')) {
     function getFeaturedProjects(): array
     {
         return array_values(array_filter(
-            loadProjects(),
+            getProjects(),
             static function (array $project): bool {
                 return !empty($project['featured']);
             }
@@ -70,7 +70,7 @@ if (!function_exists('getRelatedProjects')) {
     function getRelatedProjects(string $currentSlug, int $limit = 2): array
     {
         $related = array_values(array_filter(
-            loadProjects(),
+            getProjects(),
             static function (array $project) use ($currentSlug): bool {
                 return $project['slug'] !== $currentSlug;
             }
@@ -353,6 +353,326 @@ if (!function_exists('getEducationList')) {
 
         return $rows;
     }
+
+    if (!function_exists('loadProjectsFromDb')) {
+        /**
+         * Internal: baca seluruh baris `projects` dari MySQL, dipetakan ke
+         * bentuk array yang identik dengan satu entri data/projects.php
+         * (key yang sama persis) supaya project-card.php, project.php, dan
+         * index.php tidak perlu tahu sumber datanya berubah.
+         *
+         * Mengembalikan [] baik saat tabel kosong maupun saat gagal
+         * (DB tidak ada / query error) — pemanggil (getProjects()) yang
+         * memutuskan untuk fallback ke data/projects.php pada kedua kasus
+         * itu, sesuai prioritas fallback Phase 4.9.
+         */
+        function loadProjectsFromDb(): array
+        {
+            $pdo = getDbForPublicRead();
+            if ($pdo === null) {
+                return [];
+            }
+
+            try {
+                $stmt = $pdo->query(
+                    'SELECT id, slug, title, category, status, year, featured, summary,
+                            technologies, problem, approach, result, result_highlight,
+                            lessons
+                    FROM projects
+                    ORDER BY sort_order ASC, id ASC'
+                );
+                $rows = $stmt ? $stmt->fetchAll() : [];
+
+                if (empty($rows)) {
+                    return [];
+                }
+
+                return array_map(static function (array $row): array {
+                    $technologies = [];
+                    if (!empty($row['technologies'])) {
+                        $decoded = json_decode((string) $row['technologies'], true);
+                        if (is_array($decoded)) {
+                            $technologies = $decoded;
+                        }
+                    }
+
+                    return [
+                        'id'               => (int) $row['id'],
+                        'slug'             => (string) $row['slug'],
+                        'title'            => (string) $row['title'],
+                        'category'         => (string) ($row['category'] ?? ''),
+                        'status'           => (string) ($row['status'] ?? ''),
+                        'year'             => (string) ($row['year'] ?? ''),
+                        'featured'         => !empty($row['featured']),
+                        'summary'          => (string) ($row['summary'] ?? ''),
+                        'technologies'     => $technologies,
+                        'problem'          => (string) ($row['problem'] ?? ''),
+                        'approach'         => (string) ($row['approach'] ?? ''),
+                        'result'           => (string) ($row['result'] ?? ''),
+                        'result_highlight' => ($row['result_highlight'] ?? '') !== ''
+                            ? (string) $row['result_highlight']
+                            : null,
+                        'lessons'          => (string) ($row['lessons'] ?? ''),
+                        /*
+                        * Internal marker only — never rendered. Tells
+                        * project.php it is safe to look up project_media
+                        * for this id (see getProjectMedia() docblock: a
+                        * file-fallback project's numeric id has no
+                        * guaranteed correspondence to project_media rows).
+                        */
+                        '_source'          => 'db',
+                    ];
+                }, $rows);
+            } catch (Throwable $e) {
+                return [];
+            }
+        }
+    }
+
+    if (!function_exists('getProjects')) {
+        /**
+         * Phase 4.9 — repository tunggal untuk seluruh data project di sisi
+         * publik (Home, Work, Project detail). Prioritas fallback:
+         *   1. MySQL (`projects`) berisi baris  -> dipakai.
+         *   2. MySQL kosong ATAU gagal diakses  -> data/projects.php
+         *      (loadProjects() — tidak diubah/dihapus).
+         * Hasil di-cache per request supaya index.php + work.php +
+         * project.php selalu melihat sumber data yang SAMA dalam satu
+         * request (tidak mungkin satu halaman menampilkan campuran DB dan
+         * file), dan tidak query DB berulang kali.
+         */
+        function getProjects(): array
+        {
+            static $projects = null;
+
+            if ($projects !== null) {
+                return $projects;
+            }
+
+            $dbProjects = loadProjectsFromDb();
+
+            $projects = !empty($dbProjects) ? $dbProjects : loadProjects();
+
+            return $projects;
+        }
+    }
+
+    if (!function_exists('getProjectBySlug')) {
+        /** Cari satu project (dari getProjects(), sumber DB atau fallback) berdasarkan slug. */
+        function getProjectBySlug(string $slug): ?array
+        {
+            if ($slug === '') {
+                return null;
+            }
+
+            foreach (getProjects() as $project) {
+                if ($project['slug'] === $slug) {
+                    return $project;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    if (!function_exists('getProjectMedia')) {
+        /**
+         * Phase 4.9 — baca `project_media` untuk satu project. Hanya aman
+         * dipanggil ketika project itu sendiri berasal dari MySQL (cek
+         * penanda internal $project['_source'] === 'db' dari
+         * loadProjectsFromDb() di sisi pemanggil) — sebuah project hasil
+         * fallback data/projects.php memakai id statis 1/2/3 yang TIDAK
+         * boleh diasumsikan berkorespondensi dengan project_media.project_id
+         * milik baris DB yang mungkin masih ada. Degrade ke [] pada
+         * kegagalan apa pun (DB tidak ada / query error).
+         */
+        function getProjectMedia(int $projectId): array
+        {
+            if ($projectId <= 0) {
+                return [];
+            }
+
+            $pdo = getDbForPublicRead();
+            if ($pdo === null) {
+                return [];
+            }
+
+            try {
+                $stmt = $pdo->prepare(
+                    'SELECT id, type, path, alt_text, sort_order
+                    FROM project_media
+                    WHERE project_id = :project_id
+                    ORDER BY sort_order ASC, id ASC'
+                );
+                $stmt->execute(['project_id' => $projectId]);
+
+                return $stmt->fetchAll();
+            } catch (Throwable $e) {
+                return [];
+            }
+        }
+    }
+
+    if (!function_exists('getSkillsList')) {
+        /**
+         * Phase 4.8 — baca seluruh baris `skills` untuk sisi publik, terurut
+         * sesuai sort_order lalu id. Dipakai oleh section Capabilities
+         * (index.php), satu-satunya grid berbasis skill yang sudah ada di
+         * Phase 3. Kegagalan apa pun degrade ke array kosong sehingga
+         * index.php tetap bisa fallback ke daftar statis Phase 3.1.
+         */
+        function getSkillsList(): array
+        {
+            static $rows = null;
+
+            if ($rows !== null) {
+                return $rows;
+            }
+
+            $rows = [];
+
+            $pdo = getDbForPublicRead();
+            if ($pdo === null) {
+                return $rows;
+            }
+
+            try {
+                $stmt = $pdo->query(
+                    'SELECT name, category, level
+                    FROM skills
+                    ORDER BY sort_order ASC, id ASC'
+                );
+
+                $rows = $stmt ? $stmt->fetchAll() : [];
+            } catch (Throwable $e) {
+                $rows = [];
+            }
+
+            return $rows;
+        }
+    }
+
+    if (!function_exists('getCertificationsList')) {
+        /**
+         * Phase 4.8 — baca seluruh baris `certifications` untuk sisi publik.
+         * Belum ada section Certifications di markup Phase 3 (tidak ada
+         * placeholder yang bisa diisi tanpa redesign), jadi helper ini
+         * disediakan sesuai brief ("Gunakan helper/repository sederhana...
+         * untuk Certifications") tapi BELUM dipanggil dari index.php.
+         */
+        function getCertificationsList(): array
+        {
+            static $rows = null;
+
+            if ($rows !== null) {
+                return $rows;
+            }
+
+            $rows = [];
+
+            $pdo = getDbForPublicRead();
+            if ($pdo === null) {
+                return $rows;
+            }
+
+            try {
+                $stmt = $pdo->query(
+                    'SELECT name, issuer, issue_date, expire_date, credential_url
+                    FROM certifications
+                    ORDER BY sort_order ASC, id ASC'
+                );
+
+                $rows = $stmt ? $stmt->fetchAll() : [];
+            } catch (Throwable $e) {
+                $rows = [];
+            }
+
+            return $rows;
+        }
+    }
+
+    if (!function_exists('getExperienceList')) {
+        /**
+         * Phase 4.8 — baca seluruh baris `experience` untuk sisi publik.
+         * Sama seperti Certifications: belum ada section Experience di
+         * markup Phase 3 (dicatat sejak komentar Phase 4.3 di index.php),
+         * jadi helper ini disediakan tapi BELUM dipanggil — menghindari
+         * redesign besar yang dilarang scope lock Phase 4.8.
+         */
+        function getExperienceList(): array
+        {
+            static $rows = null;
+
+            if ($rows !== null) {
+                return $rows;
+            }
+
+            $rows = [];
+
+            $pdo = getDbForPublicRead();
+            if ($pdo === null) {
+                return $rows;
+            }
+
+            try {
+                $stmt = $pdo->query(
+                    'SELECT company, role, start_date, end_date, description
+                    FROM experience
+                    ORDER BY sort_order ASC, id ASC'
+                );
+
+                $rows = $stmt ? $stmt->fetchAll() : [];
+            } catch (Throwable $e) {
+                $rows = [];
+            }
+
+            return $rows;
+        }
+    }
+
+    if (!function_exists('getActiveCv')) {
+        /**
+         * Phase 4.8 — baca satu baris `documents` (type = 'cv') dengan
+         * is_current = 1, untuk sisi publik. Mengembalikan path/URL saja
+         * (tidak ada engine upload/download baru — public cukup membaca
+         * path aktif ini bila/ketika ada tombol yang memakainya). Tidak ada
+         * tombol CV di markup Phase 3 saat ini, jadi helper ini disediakan
+         * tapi BELUM dipanggil dari index.php.
+         */
+        function getActiveCv(): ?array
+        {
+            static $cv = false;
+
+            if ($cv !== false) {
+                return $cv;
+            }
+
+            $cv = null;
+
+            $pdo = getDbForPublicRead();
+            if ($pdo === null) {
+                return $cv;
+            }
+
+            try {
+                $stmt = $pdo->prepare(
+                    "SELECT title, file_path
+                    FROM documents
+                    WHERE type = 'cv' AND is_current = 1
+                    LIMIT 1"
+                );
+                $stmt->execute();
+                $row = $stmt->fetch();
+
+                $cv = $row ?: null;
+            } catch (Throwable $e) {
+                $cv = null;
+            }
+
+            return $cv;
+        }
+    }
+ 
     if (!function_exists('getPublicContacts')) {
         /**
          * Phase 4.6 — read all visible rows from `contacts` (Contact and
