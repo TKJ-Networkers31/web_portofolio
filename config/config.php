@@ -79,6 +79,15 @@ if (!defined('APP_DEBUG')) {
     define('APP_DEBUG', env('APP_DEBUG', 'false') === 'true');
 }
 
+if (!defined('CMS_ADMIN_BASE')) {
+    $adminScript = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '/admin/index.php'));
+    if (preg_match('#^(.*?)/admin(?:/|$)#', $adminScript, $adminPathMatch)) {
+        define('CMS_ADMIN_BASE', $adminPathMatch[1] . '/admin');
+    } else {
+        define('CMS_ADMIN_BASE', '/admin');
+    }
+}
+
 if (APP_DEBUG) {
     ini_set('display_errors', '1');
     error_reporting(E_ALL);
@@ -87,9 +96,16 @@ if (APP_DEBUG) {
     error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE);
 }
 
-/* ---------- Secure admin session ---------- */
+/* ---------- Secure admin session ----------
+ *
+ * Public pages (SITE_BOOT) load this file via getDbForPublicRead() so they
+ * can share env()/db(). They must NOT start the admin session: a fresh
+ * session id written with Path=/admin would overwrite the logged-in cookie
+ * and force a re-login when navigating between admin pages after viewing
+ * the public site — or even after any public bootstrap in the same browser.
+ */
 
-if (session_status() === PHP_SESSION_NONE) {
+if (!defined('SITE_BOOT') && session_status() === PHP_SESSION_NONE) {
     $sessionName     = env('SESSION_NAME', 'portfolio_admin_sess');
     $sessionLifetime = (int) env('SESSION_LIFETIME', '1800');
     $isHttps         = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
@@ -104,7 +120,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
     session_set_cookie_params([
         'lifetime' => 0,        // browser-session cookie; idle timeout is enforced in app/admin-auth.php
-        'path'     => '/admin',
+        'path'     => CMS_ADMIN_BASE,
         'domain'   => '',
         'secure'   => $isHttps,
         'httponly' => true,

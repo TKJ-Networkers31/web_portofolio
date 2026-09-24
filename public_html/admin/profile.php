@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute($params);
 
             // PRG: redirect after a successful write so refresh never resubmits.
-            header('Location: /admin/profile.php?saved=1');
+            header('Location: ' . adminUrl('profile.php') . '?saved=1');
             exit;
         }
     }

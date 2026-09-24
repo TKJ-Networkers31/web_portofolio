@@ -108,6 +108,80 @@
   min-width: 200px;
 }
 
+/* ---- Contact form (FINAL QA item #4 — Send Message) ---- */
+.contact-form {
+  max-width: 480px;
+  margin-inline: auto;
+  margin-top: var(--space-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  text-align: left;
+}
+
+.contact-form__field {
+  display: block;
+}
+
+.contact-form__field > .meta {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.contact-form__field input,
+.contact-form__field textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.contact-form__field textarea {
+  min-height: auto;
+  resize: vertical;
+  line-height: var(--lh-body);
+}
+
+.contact-form__field input:focus-visible,
+.contact-form__field textarea:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.contact-form__honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.contact-form__notice {
+  max-width: 480px;
+  margin-inline: auto;
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-small);
+}
+
+.contact-form__notice--success {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.contact-form__notice--error {
+  border-color: var(--error);
+  color: var(--error);
+}
+
 /* ---- Footer ---- */
 .footer-copy {
   margin-bottom: 0;

@@ -134,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare('DELETE FROM project_media WHERE id = :id AND project_id = :project_id');
             $stmt->execute(['id' => $deleteId, 'project_id' => $projectId]);
 
-            header('Location: /admin/project-media.php?project_id=' . $projectId . '&deleted=1');
+            header('Location: ' . adminUrl('project-media.php') . '?project_id=' . $projectId . '&deleted=1');
             exit;
         }
     } elseif ($action === 'save') {
@@ -207,7 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
                     $stmt->execute($params);
 
-                    header('Location: /admin/project-media.php?project_id=' . $projectId . '&saved=1');
+                    header('Location: ' . adminUrl('project-media.php') . '?project_id=' . $projectId . '&saved=1');
                     exit;
                 }
             } else {
@@ -217,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $stmt->execute($params);
 
-                header('Location: /admin/project-media.php?project_id=' . $projectId . '&saved=1');
+                header('Location: ' . adminUrl('project-media.php') . '?project_id=' . $projectId . '&saved=1');
                 exit;
             }
         }

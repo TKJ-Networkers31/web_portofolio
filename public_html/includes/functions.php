@@ -10,6 +10,9 @@ declare(strict_types=1);
  * publik). Prosedural sesuai instruksi brief ("Jangan OOP").
  * data/projects.php tetap satu-satunya sumber data project — file ini
  * hanya berisi fungsi yang membaca dan mengolahnya.
+ *
+ * FINAL QA: menambahkan submitContactMessage() di paling bawah file
+ * (item #4 — Send Message). Tidak ada fungsi lain yang diubah.
  */
 
 if (!defined('SITE_BOOT')) {
@@ -672,7 +675,7 @@ if (!function_exists('getEducationList')) {
             return $cv;
         }
     }
- 
+
     if (!function_exists('getPublicContacts')) {
         /**
          * Phase 4.6 — read all visible rows from `contacts` (Contact and
@@ -709,6 +712,61 @@ if (!function_exists('getEducationList')) {
             }
 
             return $rows;
+        }
+    }
+}
+
+if (!function_exists('submitContactMessage')) {
+    /**
+     * FINAL QA item #4 — "Send Message".
+     *
+     * Audit: sebelum fix ini, tombol "Send Message" di index.php adalah
+     * `<a href="#" data-dummy aria-disabled="true">` — bukan form, tidak
+     * ada handler sama sekali (lihat komentar asli "DUMMY: form kontak
+     * dibuat di fase berikutnya"). Tidak ada tempat pesan benar-benar
+     * diproses atau disimpan.
+     *
+     * Fix: form nyata di index.php (lihat section Contact) submit ke
+     * index.php sendiri (POST), diproses fungsi ini. Pesan disimpan ke
+     * tabel `messages` (baru, additive — lihat database/schema-*.sql)
+     * lewat koneksi yang sama dengan getDbForPublicRead(), supaya sisi
+     * publik tetap degrade aman jika DB/tabel belum ada — TIDAK PERNAH
+     * melaporkan sukses palsu: return false berarti index.php harus
+     * menampilkan pesan gagal, bukan berpura-pura terkirim.
+     *
+     * @return bool true hanya jika baris benar-benar tersimpan di DB.
+     */
+    function submitContactMessage(string $name, string $email, string $message): bool
+    {
+        $name    = trim($name);
+        $email   = trim($email);
+        $message = trim($message);
+
+        if ($name === '' || $message === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            return false;
+        }
+
+        $pdo = getDbForPublicRead();
+        if ($pdo === null) {
+            return false;
+        }
+
+        try {
+            // Additive schema (database/schema-sqlite.sql + schema-mysql.sql):
+            // CREATE TABLE IF NOT EXISTS messages(...). Jika migrasi belum
+            // dijalankan di server ini, INSERT akan gagal dan kita
+            // melaporkan gagal apa adanya — bukan sukses palsu.
+            $stmt = $pdo->prepare(
+                'INSERT INTO messages (name, email, message) VALUES (:name, :email, :message)'
+            );
+
+            return $stmt->execute([
+                'name'    => mb_substr($name, 0, 191),
+                'email'   => mb_substr($email, 0, 191),
+                'message' => mb_substr($message, 0, 5000),
+            ]);
+        } catch (Throwable $e) {
+            return false;
         }
     }
 }

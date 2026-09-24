@@ -167,7 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw $e;
             }
 
-            header('Location: /admin/projects.php?deleted=1');
+            header('Location: ' . adminUrl('projects.php') . '?deleted=1');
             exit;
         }
     } elseif ($action === 'save') {
@@ -250,7 +250,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
                     $stmt->execute($params);
 
-                    header('Location: /admin/projects.php?saved=1');
+                    header('Location: ' . adminUrl('projects.php') . '?saved=1');
                     exit;
                 }
             } else {
@@ -266,7 +266,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $stmt->execute($params);
 
-                header('Location: /admin/projects.php?saved=1');
+                header('Location: ' . adminUrl('projects.php') . '?saved=1');
                 exit;
             }
         }

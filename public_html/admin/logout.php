@@ -21,5 +21,5 @@ if (isAdminLoggedIn()
     logoutAdmin();
 }
 
-header('Location: /admin/login.php');
+header('Location: ' . adminUrl('login.php'));
 exit;

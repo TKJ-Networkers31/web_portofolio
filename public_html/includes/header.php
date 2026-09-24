@@ -8,6 +8,19 @@
  * Variabel opsional yang dapat diatur sebelum include:
  *   $pageTitle, $pageDescription, $canonicalUrl, $pageRobots, $ogType
  *   $currentPage ('home' default | 'work' | 'project') — lihat Phase 3.2
+ *
+ * FINAL QA FIX (#9 — CSS tidak termuat di halaman project detail):
+ * Seluruh asset (CSS/JS) dan tautan navigasi internal di file ini dulu
+ * memakai path RELATIF (mis. "assets/css/tokens.css", "work.php").
+ * Path relatif di-resolve oleh browser terhadap URL saat ini, bukan
+ * terhadap lokasi file di server. Untuk index.php/work.php (di root)
+ * kebetulan tetap benar, tapi untuk /project/{slug} (pretty URL dari
+ * .htaccess) path yang sama di-resolve menjadi /project/assets/... dan
+ * /project/work.php — 404, sehingga halaman tampil tanpa styling.
+ * Perbaikan: asset() dan seluruh href internal di header/footer/
+ * breadcrumb sekarang root-absolute (diawali "/"), sesuai RewriteBase "/"
+ * pada public_html/.htaccess. Tidak ada perubahan pada isi CSS/JS itu
+ * sendiri, hanya cara path-nya ditulis.
  */
 
 if (!defined('SITE_BOOT')) {
@@ -24,14 +37,19 @@ if (!function_exists('e')) {
 }
 
 if (!function_exists('asset')) {
-    /** Path aset relatif dengan versi (filemtime) untuk cache busting. */
+    /**
+     * Path aset root-absolute dengan versi (filemtime) untuk cache busting.
+     * Root-absolute (diawali "/") supaya tetap benar dari URL manapun,
+     * termasuk pretty URL /project/{slug} — lihat catatan Phase 3.2 QA
+     * di atas.
+     */
     function asset(string $path): string
     {
         $path = ltrim($path, '/');
         $file = dirname(__DIR__) . '/' . $path;
         $version = is_file($file) ? (string) filemtime($file) : '1';
 
-        return $path . '?v=' . $version;
+        return '/' . $path . '?v=' . $version;
     }
 }
 
@@ -43,9 +61,15 @@ $ogType          = $ogType ?? 'website';
 
 $currentPage = $currentPage ?? 'home';
 
-$brandHref   = $currentPage === 'home' ? '#home' : 'index.php';
-$aboutHref   = $currentPage === 'home' ? '#about' : 'index.php#about';
-$contactHref = $currentPage === 'home' ? '#contact' : 'index.php#contact';
+/*
+ * Root-absolute: sebelumnya "index.php#about" / "#about" campur relatif,
+ * yang salah resolve di bawah /project/{slug}. Sekarang selalu diawali
+ * "/" untuk tautan ke halaman lain, dan hash-only untuk anchor di
+ * halaman yang sama.
+ */
+$brandHref   = $currentPage === 'home' ? '#home' : '/index.php';
+$aboutHref   = $currentPage === 'home' ? '#about' : '/index.php#about';
+$contactHref = $currentPage === 'home' ? '#contact' : '/index.php#contact';
 
 $workAriaCurrent = match ($currentPage) {
     'work'    => 'page', // halaman Work itu sendiri
@@ -122,7 +146,7 @@ $workAriaCurrent = match ($currentPage) {
       <div class="nav-panel" id="site-menu">
         <nav class="nav-local" aria-label="Primary">
           <ul role="list">
-            <li><a href="work.php"<?= $workAriaCurrent !== null ? ' aria-current="' . e($workAriaCurrent) . '"' : '' ?>>Work</a></li>
+            <li><a href="/work.php"<?= $workAriaCurrent !== null ? ' aria-current="' . e($workAriaCurrent) . '"' : '' ?>>Work</a></li>
             <li><a href="<?= e($aboutHref) ?>">About</a></li>
             <li><a href="<?= e($contactHref) ?>">Contact</a></li>
           </ul>
@@ -130,7 +154,7 @@ $workAriaCurrent = match ($currentPage) {
 
         <nav class="nav-env" aria-label="Ecosystem">
           <ul role="list">
-            <li><a href="./" aria-current="true">Portfolio</a></li>
+            <li><a href="/" aria-current="true">Portfolio</a></li>
             <!-- DUMMY: nanti menjadi subdomain https://business.mohamadlingga.my.id -->
             <li><a href="#" data-dummy aria-disabled="true">Business</a></li>
             <!-- DUMMY: nanti menjadi subdomain https://lab.mohamadlingga.my.id -->

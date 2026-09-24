@@ -6,13 +6,9 @@ declare(strict_types=1);
  * config/database.php
  *
  * Returns a cached PDO connection. Driver is chosen by DB_DRIVER in .env:
- *   - "sqlite" (default): a single file under storage/, no DB server needed.
- *     Chosen as the default because it matches the existing hosting/
- *     architecture — a plain PHP app with no server-side services beyond
- *     PHP itself — and needs zero setup beyond a writable storage/ folder.
- *   - "mysql": for hosts that provide a MySQL/MariaDB service. Switching
- *     drivers requires no code changes elsewhere, only .env and running
- *     database/migrate.php again against the new connection.
+ *   - "mysql" (primary): MySQL/MariaDB named in DB_HOST / DB_NAME / DB_USER.
+ *   - "sqlite": optional local/dev parity only, when DB_DRIVER=sqlite.
+ * Credentials always come from the environment — never hardcoded.
  *
  * Requires config/config.php (for env()) to be loaded first.
  */
@@ -31,7 +27,7 @@ if (!function_exists('db')) {
             return $pdo;
         }
 
-        $driver = env('DB_DRIVER', 'sqlite');
+        $driver = strtolower((string) env('DB_DRIVER', 'mysql'));
 
         if ($driver === 'mysql') {
             $host = env('DB_HOST', '127.0.0.1');

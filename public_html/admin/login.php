@@ -15,14 +15,15 @@ require __DIR__ . '/../../app/helpers.php';
 require __DIR__ . '/../../app/admin-auth.php';
 
 if (isAdminLoggedIn()) {
-    header('Location: /admin/index.php');
+    header('Location: ' . adminUrl('index.php'));
     exit;
 }
 
 // Only allow redirects back into /admin — never to an external URL.
-$redirect = isset($_GET['redirect']) ? (string) $_GET['redirect'] : '/admin/index.php';
-if (!str_starts_with($redirect, '/admin/')) {
-    $redirect = '/admin/index.php';
+$adminPrefix = adminUrl('') . '/';
+$redirect    = isset($_GET['redirect']) ? (string) $_GET['redirect'] : adminUrl('index.php');
+if (!str_starts_with($redirect, $adminPrefix)) {
+    $redirect = adminUrl('index.php');
 }
 
 $error = '';

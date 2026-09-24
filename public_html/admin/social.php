@@ -9,6 +9,15 @@ declare(strict_types=1);
  * Shares the existing `contacts` table with admin/contact.php (schema
  * unchanged); scoped to SOCIAL_TYPES so the two pages never read, edit,
  * or delete each other's rows.
+ *
+ * FINAL QA item #3: the free-text "icon" input is replaced with a
+ * <select> built from SOCIAL_ICON_OPTIONS — the exact icon keys actually
+ * rendered by public_html/index.php's $icons map (the project's real
+ * icon library; no new icon set invented). The user no longer has to
+ * type an icon name. Every existing option (including `other`) is kept.
+ * A row saved earlier with a free-typed value that isn't one of these
+ * keys still round-trips correctly: it's shown as an extra "Current: …"
+ * option so nothing is silently lost or overwritten by opening the form.
  */
 
 require __DIR__ . '/../../config/config.php';
@@ -23,6 +32,26 @@ $pdo = db();
 const SOCIAL_FIELDS = ['label', 'type', 'value', 'icon', 'is_visible', 'sort_order'];
 
 const SOCIAL_TYPES = ['github', 'linkedin', 'instagram', 'twitter', 'facebook', 'youtube', 'tiktok', 'website', 'other'];
+
+/**
+ * Icon keys that public_html/index.php's $icons array actually renders.
+ * Kept in sync manually with that array on purpose (public site has no
+ * dependency on admin/, and vice versa — see app/helpers.php note on
+ * scope) rather than introducing a new shared include across the
+ * public/admin boundary.
+ */
+const SOCIAL_ICON_OPTIONS = [
+    'mail'      => 'Mail',
+    'github'    => 'GitHub',
+    'linkedin'  => 'LinkedIn',
+    'instagram' => 'Instagram',
+    'twitter'   => 'Twitter / X',
+    'facebook'  => 'Facebook',
+    'youtube'   => 'YouTube',
+    'tiktok'    => 'TikTok',
+    'website'   => 'Website / Link',
+    'other'     => 'Other',
+];
 
 const SOCIAL_MAX_LENGTHS = [
     'label' => 191,
@@ -67,6 +96,7 @@ $editId  = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 
 $formValues = array_fill_keys(SOCIAL_FIELDS, '');
 $formValues['type']       = SOCIAL_TYPES[0];
+$formValues['icon']       = 'github';
 $formValues['sort_order'] = '0';
 $formValues['is_visible'] = '1';
 $editingRow = null;
@@ -129,6 +159,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Type must be one of: ' . implode(', ', SOCIAL_TYPES) . '.';
         }
 
+        // Icon now comes from a <select> — still validated server-side in
+        // case of a tampered request. Unknown values fall back to
+        // "other" rather than being rejected, so a save never fails just
+        // because of the icon.
+        if ($formValues['icon'] === '' || !array_key_exists($formValues['icon'], SOCIAL_ICON_OPTIONS)) {
+            $formValues['icon'] = 'other';
+        }
+
         if ($formValues['value'] === '') {
             $errors[] = 'URL is required.';
         } elseif (filter_var($formValues['value'], FILTER_VALIDATE_URL) === false) {
@@ -151,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'label'      => $formValues['label'],
                 'type'       => $formValues['type'],
                 'value'      => $formValues['value'],
-                'icon'       => $formValues['icon'] !== '' ? $formValues['icon'] : null,
+                'icon'       => $formValues['icon'],
                 'is_visible' => $formValues['is_visible'] === '1' ? 1 : 0,
                 'sort_order' => (int) $formValues['sort_order'],
             ];
@@ -259,13 +297,21 @@ require __DIR__ . '/includes/admin-header.php';
     </div>
 
     <label class="admin-field">
-      <span>URL</span>
-      <input type="url" name="value" value="<?= e($formValues['value']) ?>" maxlength="255" required placeholder="https://github.com/username">
+      <span>Icon</span>
+      <select name="icon" class="admin-icon-select">
+<?php foreach (SOCIAL_ICON_OPTIONS as $key => $iconLabel): ?>
+        <option value="<?= e($key) ?>"<?= $formValues['icon'] === $key ? ' selected' : '' ?>><?= e($iconLabel) ?></option>
+<?php endforeach; ?>
+<?php if ($formValues['icon'] !== '' && !array_key_exists($formValues['icon'], SOCIAL_ICON_OPTIONS)): ?>
+        <option value="<?= e($formValues['icon']) ?>" selected>Current: <?= e($formValues['icon']) ?></option>
+<?php endif; ?>
+      </select>
+      <span class="meta">Picked from the icon set already used on the public site — no typing needed.</span>
     </label>
 
     <label class="admin-field">
-      <span>Icon (optional key, e.g. github)</span>
-      <input type="text" name="icon" value="<?= e($formValues['icon']) ?>" maxlength="64">
+      <span>URL</span>
+      <input type="url" name="value" value="<?= e($formValues['value']) ?>" maxlength="255" required placeholder="https://github.com/username">
     </label>
 
     <label class="admin-field">
@@ -292,6 +338,7 @@ require __DIR__ . '/includes/admin-header.php';
         <tr>
           <th>Label</th>
           <th>Type</th>
+          <th>Icon</th>
           <th>URL</th>
           <th>Visible</th>
           <th>Order</th>
@@ -303,6 +350,7 @@ require __DIR__ . '/includes/admin-header.php';
         <tr>
           <td><?= e((string) $row['label']) ?></td>
           <td class="meta"><?= e((string) $row['type']) ?></td>
+          <td class="meta"><?= e(SOCIAL_ICON_OPTIONS[(string) $row['icon']] ?? (string) $row['icon']) ?></td>
           <td><a class="link-text" href="<?= e((string) $row['value']) ?>" target="_blank" rel="noopener noreferrer"><?= e((string) $row['value']) ?></a></td>
           <td class="meta"><?= !empty($row['is_visible']) ? 'Yes' : 'No' ?></td>
           <td class="meta"><?= (int) $row['sort_order'] ?></td>

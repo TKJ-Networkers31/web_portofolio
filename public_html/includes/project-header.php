@@ -10,6 +10,11 @@ declare(strict_types=1);
  *
  * Membutuhkan $project (array) sudah di-set oleh project.php, dan
  * projectStatusMeta() dari includes/functions.php, sebelum include ini.
+ *
+ * FINAL QA FIX (#9): breadcrumb "index.php" / "work.php" sebelumnya
+ * relatif — di halaman ini URL aktif adalah /project/{slug}, sehingga
+ * browser me-resolve-nya menjadi /project/index.php dan /project/work.php
+ * (404). Sekarang root-absolute.
  */
 
 if (!defined('SITE_BOOT')) {
@@ -20,21 +25,18 @@ if (!defined('SITE_BOOT')) {
 /** @var array<string,mixed> $project */
 
 $statusMeta = projectStatusMeta($project['status']);
-
-$statusMeta = projectStatusMeta($project['status']);
 ?>
 <section class="project-hero">
   <div class="container">
     <div class="project-hero__top">
       <nav class="breadcrumb" aria-label="Breadcrumb">
         <ol role="list">
-          <li><a href="index.php">Home</a></li>
-          <li><a href="work.php">Work</a></li>
+          <li><a href="/index.php">Home</a></li>
+          <li><a href="/work.php">Work</a></li>
           <li aria-current="page"><?= e($project['title']) ?></li>
         </ol>
       </nav>
-
-      <a class="link-text" href="work.php">&larr; Back to Work</a>
+      <a class="link-text" href="/work.php">&larr; Back to Work</a>
     </div>
 
     <p class="project-hero__category"><?= e($project['category']) ?></p>

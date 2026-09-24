@@ -4,6 +4,9 @@
  *
  * Menutup <main>, menampilkan footer, memuat JavaScript, dan menutup dokumen.
  * Pasangan dari includes/header.php.
+ *
+ * FINAL QA FIX (#9): tautan "Portfolio" sebelumnya "./" (relatif) — salah
+ * resolve di bawah /project/{slug}. Sekarang root-absolute ("/").
  */
 
 if (!defined('SITE_BOOT')) {
@@ -20,7 +23,7 @@ if (!defined('SITE_BOOT')) {
 
         <nav class="footer-nav" aria-label="Ecosystem footer">
           <ul role="list">
-            <li><a href="./" aria-current="true">Portfolio</a></li>
+            <li><a href="/" aria-current="true">Portfolio</a></li>
             <!-- DUMMY: nanti menjadi subdomain business.mohamadlingga.my.id -->
             <li><a href="#" data-dummy aria-disabled="true">Business</a></li>
             <!-- DUMMY: nanti menjadi subdomain lab.mohamadlingga.my.id -->

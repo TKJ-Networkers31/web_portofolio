@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare('DELETE FROM documents WHERE id = :id AND type = :type');
                 $stmt->execute(['id' => $deleteId, 'type' => CV_TYPE]);
 
-                header('Location: /admin/cv.php?deleted=1');
+                header('Location: ' . adminUrl('cv.php') . '?deleted=1');
                 exit;
             }
         }
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             makeCvActive($pdo, $activeId);
 
-            header('Location: /admin/cv.php?activated=1');
+            header('Location: ' . adminUrl('cv.php') . '?activated=1');
             exit;
         }
     } elseif ($action === 'save') {
@@ -180,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         makeCvActive($pdo, $postId);
                     }
 
-                    header('Location: /admin/cv.php?saved=1');
+                    header('Location: ' . adminUrl('cv.php')?saved=1');
                     exit;
                 }
             } else {
@@ -199,7 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     makeCvActive($pdo, $newId);
                 }
 
-                header('Location: /admin/cv.php?saved=1');
+                header('Location: ' . adminUrl('cv.php')?saved=1');
                 exit;
             }
         }

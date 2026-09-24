@@ -147,8 +147,10 @@ if (!function_exists('requireAdmin')) {
     function requireAdmin(): void
     {
         if (!isAdminLoggedIn()) {
-            $redirect = urlencode($_SERVER['REQUEST_URI'] ?? '/admin/index.php');
-            header('Location: /admin/login.php?redirect=' . $redirect);
+            $fallback = function_exists('adminUrl') ? adminUrl('index.php') : '/admin/index.php';
+            $login    = function_exists('adminUrl') ? adminUrl('login.php') : '/admin/login.php';
+            $redirect = urlencode($_SERVER['REQUEST_URI'] ?? $fallback);
+            header('Location: ' . $login . '?redirect=' . $redirect);
             exit;
         }
     }

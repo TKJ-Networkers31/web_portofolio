@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare('DELETE FROM certifications WHERE id = :id');
             $stmt->execute(['id' => $deleteId]);
 
-            header('Location: /admin/certifications.php?deleted=1');
+            header('Location: ' . adminUrl('certifications.php') . '?deleted=1');
             exit;
         }
     } elseif ($action === 'save') {
@@ -166,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
                     $stmt->execute($params);
 
-                    header('Location: /admin/certifications.php?saved=1');
+                    header('Location: ' . adminUrl('certifications.php') . '?saved=1');
                     exit;
                 }
             } else {
@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $stmt->execute($params);
 
-                header('Location: /admin/certifications.php?saved=1');
+                header('Location: ' . adminUrl('certifications.php') . '?saved=1');
                 exit;
             }
         }

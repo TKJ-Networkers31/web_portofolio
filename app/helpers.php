@@ -44,3 +44,55 @@ if (!function_exists('isValidDateString')) {
         return checkdate($month, $day, $year);
     }
 }
+
+if (!function_exists('adminUrl')) {
+    /** Absolute admin path, respecting subdirectory installs. */
+    function adminUrl(string $path = ''): string
+    {
+        $base = defined('CMS_ADMIN_BASE') ? CMS_ADMIN_BASE : '/admin';
+        $path = ltrim($path, '/');
+
+        return $path === '' ? $base : $base . '/' . $path;
+    }
+}
+
+if (!function_exists('formatBytes')) {
+    function formatBytes(?int $bytes): string
+    {
+        if ($bytes === null) {
+            return '';
+        }
+
+        if ($bytes < 1024) {
+            return $bytes . ' B';
+        }
+
+        $units = ['KB', 'MB', 'GB', 'TB'];
+        $value = $bytes / 1024;
+        $unit  = 0;
+
+        while ($value >= 1024 && $unit < count($units) - 1) {
+            $value /= 1024;
+            $unit++;
+        }
+
+        return round($value, 1) . ' ' . $units[$unit];
+    }
+}
+
+if (!function_exists('publicMediaUrl')) {
+    /** Root-absolute URL for a stored media path, or the original http(s) URL. */
+    function publicMediaUrl(string $path): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://#i', $path) === 1) {
+            return $path;
+        }
+
+        return '/' . ltrim(str_replace('\\', '/', $path), '/');
+    }
+}

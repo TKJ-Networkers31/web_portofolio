@@ -109,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare('DELETE FROM contacts WHERE id = :id');
                 $stmt->execute(['id' => $deleteId]);
 
-                header('Location: /admin/contact.php?deleted=1');
+                header('Location: ' . adminUrl('contact.php') . '?deleted=1');
                 exit;
             }
         }
@@ -181,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
                     $stmt->execute($params);
 
-                    header('Location: /admin/contact.php?saved=1');
+                    header('Location: ' . adminUrl('contact.php') . '?saved=1');
                     exit;
                 }
             } else {
@@ -191,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $stmt->execute($params);
 
-                header('Location: /admin/contact.php?saved=1');
+                header('Location: ' . adminUrl('contact.php') . '?saved=1');
                 exit;
             }
         }

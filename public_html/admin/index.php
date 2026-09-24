@@ -41,6 +41,7 @@ $sections = [
     ['label' => 'Projects',               'table' => 'projects'],
     ['label' => 'Contact / Social Links', 'table' => 'contacts'],
     ['label' => 'CV / Documents',         'table' => 'documents'],
+    ['label' => 'Messages',               'table' => 'contact_messages'],
     ['label' => 'Media',                  'table' => 'media'],
 ];
 

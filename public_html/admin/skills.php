@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare('DELETE FROM skills WHERE id = :id');
             $stmt->execute(['id' => $deleteId]);
 
-            header('Location: /admin/skills.php?deleted=1');
+            header('Location: ' . adminUrl('skills.php') . '?deleted=1');
             exit;
         }
     } elseif ($action === 'save') {
@@ -138,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
                     $stmt->execute($params);
 
-                    header('Location: /admin/skills.php?saved=1');
+                    header('Location: ' . adminUrl('skills.php') . '?saved=1');
                     exit;
                 }
             } else {
@@ -148,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $stmt->execute($params);
 
-                header('Location: /admin/skills.php?saved=1');
+                header('Location: ' . adminUrl('skills.php') . '?saved=1');
                 exit;
             }
         }

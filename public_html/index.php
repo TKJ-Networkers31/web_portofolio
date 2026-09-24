@@ -11,34 +11,73 @@ declare(strict_types=1);
  * CATATAN KONTEN: seluruh isi di bawah adalah konten sementara sesuai brief
  * Phase 3.1. Penanda [CONTENT REQUIRED] wajib diganti dengan data owner dan
  * tidak boleh dipublikasikan.
- */
-
-// SESUDAH
- /**
- * CATATAN KONTEN: seluruh isi di bawah adalah konten sementara sesuai brief
- * Phase 3.1. Penanda [CONTENT REQUIRED] wajib diganti dengan data owner dan
- * tidak boleh dipublikasikan.
  *
  * PHASE 3.2: section Selected Work sekarang membaca data/projects.php
  * (lewat getFeaturedProjects()) dan me-render tiap kartu lewat
- * includes/project-card.php, alih-alih array dummy terpisah — supaya Home
- * dan Work selalu menampilkan project yang sama persis dari satu sumber.
+ * includes/project-card.php.
  *
- * PHASE 4.2: hero statement, About lead, dan Location sekarang membaca
- * dari tabel `profile` lewat getPublicProfile() jika baris profile sudah
- * diisi lewat /admin/profile.php. Jika belum ada / gagal dibaca, teks
- * placeholder Phase 3.1 tetap tampil persis seperti sebelumnya.
+ * PHASE 4.2: hero statement, About lead, dan Location dari `profile`.
+ * PHASE 4.3: Education dari `education`.
+ * PHASE 4.6: Contact tiles dari `contacts` (email/phone/whatsapp/address
+ *            DAN social — keduanya disimpan di tabel yang sama, lihat
+ *            admin/contact.php vs admin/social.php).
  *
- * PHASE 4.3: Education di section About sekarang membaca dari tabel
- * `education` lewat getEducationList() jika sudah ada entri lewat
- * /admin/education.php. Experience TIDAK diintegrasikan ke publik pada
- * fase ini karena belum ada section Experience di Phase 3 — CRUD-nya
- * sudah aktif di admin, tapi menunggu section publik dibuat di fase lain
- * supaya tidak melakukan redesign besar di luar scope.
+ * FINAL QA (item #3 — Social):
+ *   Icon library diperluas ($icons) supaya cocok dengan seluruh
+ *   SOCIAL_TYPES di admin/social.php (sebelumnya hanya mail/github/
+ *   linkedin — tipe lain jatuh ke fallback mail, salah secara visual).
+ *   Untuk contact yang bertipe sosial ($contact['external'] === true),
+ *   nilai yang ditampilkan bukan lagi URL mentah — memenuhi requirement
+ *   "Jangan tampilkan URL panjang sebagai teks utama". Klik tile tetap
+ *   membuka URL asli (href tidak berubah).
+ *
+ * FINAL QA (item #4 — Send Message):
+ *   Audit menemukan tombol "Send Message" sebelumnya adalah
+ *   `<a href="#" data-dummy aria-disabled="true">` — TIDAK ADA form,
+ *   TIDAK ADA handler. Diganti dengan <form method="post"> nyata yang
+ *   diproses di bagian atas file ini lewat submitContactMessage()
+ *   (includes/functions.php, additive ke tabel `messages` baru). Jika
+ *   penyimpanan gagal (mis. migrasi belum dijalankan / DB tidak
+ *   tersedia), pengguna diberi tahu APA ADANYA — tidak ada pesan sukses
+ *   palsu.
  */
 
 define('SITE_BOOT', true);
 require __DIR__ . '/includes/functions.php';
+
+/* ---------- Contact form handling (item #4) ----------
+ * PRG (Post/Redirect/Get) sederhana: form submit ke index.php#contact,
+ * lalu redirect ke index.php?sent=1#contact atau ?sent=0#contact supaya
+ * refresh tidak mengirim ulang pesan yang sama.
+ */
+$contactFormOld = ['name' => '', 'email' => '', 'message' => ''];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_submit'])) {
+    // Honeypot: field tersembunyi via CSS, bot pengisi form otomatis
+    // biasanya tetap mengisinya. Manusia tidak pernah melihatnya.
+    $honeypot = trim((string) ($_POST['website'] ?? ''));
+
+    $name    = trim((string) ($_POST['name'] ?? ''));
+    $email   = trim((string) ($_POST['email'] ?? ''));
+    $message = trim((string) ($_POST['message'] ?? ''));
+
+    $contactFormOld = ['name' => $name, 'email' => $email, 'message' => $message];
+
+    if ($honeypot !== '') {
+        // Diam-diam anggap "berhasil" untuk bot, tanpa benar-benar
+        // menyimpan apa pun — bukan sukses palsu untuk pengguna asli,
+        // hanya tidak membocorkan bahwa ini honeypot.
+        header('Location: /index.php?sent=1#contact');
+        exit;
+    }
+
+    $ok = submitContactMessage($name, $email, $message);
+
+    header('Location: /index.php?' . ($ok ? 'sent=1' : 'sent=0') . '#contact');
+    exit;
+}
+
+$contactSent = isset($_GET['sent']) ? ($_GET['sent'] === '1') : null; // null = belum submit
 
 $pageTitle       = 'Mohamad Lingga Syahputra | Network Engineering, Infrastructure, AI Systems';
 $pageDescription = 'Building reliable network infrastructure, automation, and intelligent systems.';
@@ -105,11 +144,26 @@ $ecosystem = [
     ],
 ];
 
-/* Ikon SVG sederhana (stroke), markup statis tepercaya. */
+/*
+ * FINAL QA item #3: ikon SVG sederhana (stroke), markup statis
+ * tepercaya. Diperluas supaya cocok dengan seluruh SOCIAL_TYPES di
+ * admin/social.php (github, linkedin, instagram, twitter, facebook,
+ * youtube, tiktok, website, other) + CONTACT_TYPES (mail dipakai untuk
+ * email). Kunci array ini adalah "library ikon yang benar-benar dipakai
+ * project" yang dipilih dari admin/social.php lewat <select> (bukan
+ * ketik bebas lagi — lihat admin/social.php).
+ */
 $icons = [
-    'mail'     => '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
-    'github'   => '<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5a6 6 0 0 1-6 6H8.5"/>',
-    'linkedin' => '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 11v5M8 8v.01M12 16v-5M12 13.5c0-1.5 1-2.5 2.5-2.5s2.5 1 2.5 2.5V16"/>',
+    'mail'      => '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    'github'    => '<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5a6 6 0 0 1-6 6H8.5"/>',
+    'linkedin'  => '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 11v5M8 8v.01M12 16v-5M12 13.5c0-1.5 1-2.5 2.5-2.5s2.5 1 2.5 2.5V16"/>',
+    'instagram' => '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r="1"/>',
+    'twitter'   => '<path d="M20 6.5c-.7.3-1.4.5-2.2.6a3.7 3.7 0 0 0 1.6-2 7.5 7.5 0 0 1-2.4 1 3.7 3.7 0 0 0-6.4 3.4A10.5 10.5 0 0 1 3.2 5.4a3.7 3.7 0 0 0 1.2 5 3.6 3.6 0 0 1-1.7-.5v.1a3.7 3.7 0 0 0 3 3.6 3.7 3.7 0 0 1-1.7.1 3.7 3.7 0 0 0 3.5 2.6A7.5 7.5 0 0 1 2 17.8a10.6 10.6 0 0 0 5.7 1.7c6.9 0 10.6-5.7 10.6-10.6v-.5A7.6 7.6 0 0 0 20 6.5Z"/>',
+    'facebook'  => '<path d="M14 21v-7h2.5l.5-3H14V9c0-.9.3-1.5 1.7-1.5H17V4.9c-.3 0-1.3-.1-2.4-.1-2.4 0-4.1 1.5-4.1 4.2V11H8v3h2.5v7"/>',
+    'youtube'   => '<rect x="3" y="6" width="18" height="12" rx="3"/><path d="m10 9.5 5 2.5-5 2.5Z"/>',
+    'tiktok'    => '<path d="M14 3v10.5a3.5 3.5 0 1 1-3-3.46M14 3a5 5 0 0 0 5 5"/>',
+    'website'   => '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z"/>',
+    'other'     => '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .7-1 1.7M12 17v.01"/>',
 ];
 
 /* Phase 4.6: contacts dari tabel `contacts` lewat getPublicContacts(),
@@ -127,12 +181,19 @@ if (!empty($dbContacts)) {
             default                                       => $value,
         };
 
+        // FINAL QA item #3: is_social menandai apakah entri ini social
+        // link (bukan email/phone/whatsapp/address) — dipakai untuk
+        // memilih teks yang ditampilkan (bukan URL mentah, lihat markup
+        // di bawah) sekaligus untuk target="_blank".
+        $isSocial = !in_array($type, ['email', 'phone', 'whatsapp', 'address'], true);
+
         return [
             'label'    => (string) ($row['label'] ?? ''),
             'icon'     => (string) ($row['icon'] ?? '') !== '' ? (string) $row['icon'] : 'mail',
             'value'    => $value,
             'href'     => $href,
-            'external' => !in_array($type, ['email', 'phone', 'whatsapp', 'address'], true),
+            'external' => $isSocial,
+            'is_social' => $isSocial,
             'dummy'    => false,
         ];
     }, $dbContacts);
@@ -173,7 +234,7 @@ require __DIR__ . '/includes/header.php';
           <p class="hero__statement reveal delay-2"><?= e($heroStatement) ?></p>
 
           <div class="hero__actions reveal delay-3">
-            <a class="btn btn--primary" href="work.php">View Work</a>
+            <a class="btn btn--primary" href="/work.php">View Work</a>
             <a class="btn btn--secondary" href="#about">About Me</a>
           </div>
         </div>
@@ -238,7 +299,7 @@ require __DIR__ . '/includes/header.php';
         </div>
 
         <p class="section-cta reveal">
-          <a class="link-text" href="work.php">View all work &rarr;</a>
+          <a class="link-text" href="/work.php">View all work &rarr;</a>
         </p>
       </div>
     </section>
@@ -274,9 +335,6 @@ require __DIR__ . '/includes/header.php';
         . (($edu['degree'] ?? '') !== '' && ($edu['field'] ?? '') !== '' ? ' in ' : '')
         . (string) ($edu['field'] ?? '')
     );
-    $line = $degreeField !== ''
-        ? $degreeField . ' &mdash; ' . e((string) $edu['institution'])
-        : e((string) $edu['institution']);
 ?>
 <?= $degreeField !== '' ? e($degreeField) . ' &mdash; ' . e((string) $edu['institution']) : e((string) $edu['institution']) ?><?= $index < count($educationEntries) - 1 ? '<br>' : '' ?>
 <?php endforeach; ?>
@@ -371,14 +429,19 @@ require __DIR__ . '/includes/header.php';
               </span>
             </a>
 <?php else: ?>
-            <!-- Phase 4.6: dari tabel `contacts` lewat getPublicContacts() -->
+            <!--
+              Phase 4.6 / FINAL QA item #3: dari tabel `contacts` lewat
+              getPublicContacts(). Untuk link social ($contact['is_social']),
+              teks utama BUKAN URL mentah (requirement #3) — cukup label +
+              ikon; klik tile tetap membuka href aslinya.
+            -->
             <a class="contact-tile" href="<?= e($contact['href']) ?>"<?= $contact['external'] ? ' target="_blank" rel="noopener noreferrer"' : '' ?>>
               <span class="contact-tile__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false"><?= $icons[$contact['icon']] ?? $icons['mail'] ?></svg>
+                <svg viewBox="0 0 24 24" focusable="false"><?= $icons[$contact['icon']] ?? $icons['other'] ?></svg>
               </span>
               <span class="contact-tile__body">
                 <span class="contact-tile__label"><?= e($contact['label']) ?></span>
-                <span class="contact-tile__value"><?= e($contact['value']) ?></span>
+                <span class="contact-tile__value"><?= $contact['is_social'] ? 'Visit profile &rarr;' : e($contact['value']) ?></span>
               </span>
             </a>
 <?php endif; ?>
@@ -386,10 +449,45 @@ require __DIR__ . '/includes/header.php';
 <?php endforeach; ?>
         </ul>
 
-        <!-- DUMMY: form kontak dibuat di fase berikutnya -->
-        <div class="reveal">
-          <a class="btn btn--primary" href="#" data-dummy aria-disabled="true">Send Message</a>
-        </div>
+        <!--
+          FINAL QA item #4: form nyata (sebelumnya dummy <a>, lihat
+          catatan di kepala file). PRG lewat ?sent=1 / ?sent=0.
+        -->
+<?php if ($contactSent === true): ?>
+        <p class="contact-form__notice contact-form__notice--success" role="status">
+          Thanks — your message has been sent. I&rsquo;ll get back to you soon.
+        </p>
+<?php elseif ($contactSent === false): ?>
+        <p class="contact-form__notice contact-form__notice--error" role="alert">
+          Sorry, your message couldn&rsquo;t be sent right now. Please try again in a moment, or email me directly.
+        </p>
+<?php endif; ?>
+
+        <form class="contact-form reveal" method="post" action="/index.php#contact" novalidate>
+          <input type="hidden" name="contact_submit" value="1">
+
+          <!-- Honeypot anti-bot: tersembunyi dari manusia (CSS), terisi oleh bot. -->
+          <div class="contact-form__honeypot" aria-hidden="true">
+            <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+          </div>
+
+          <label class="contact-form__field">
+            <span class="meta">Name</span>
+            <input type="text" name="name" required maxlength="191" value="<?= e($contactFormOld['name']) ?>">
+          </label>
+
+          <label class="contact-form__field">
+            <span class="meta">Email</span>
+            <input type="email" name="email" required maxlength="191" value="<?= e($contactFormOld['email']) ?>">
+          </label>
+
+          <label class="contact-form__field">
+            <span class="meta">Message</span>
+            <textarea name="message" required rows="4" maxlength="5000"><?= e($contactFormOld['message']) ?></textarea>
+          </label>
+
+          <button class="btn btn--primary" type="submit">Send Message</button>
+        </form>
       </div>
     </section>
 

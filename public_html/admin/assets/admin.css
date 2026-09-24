@@ -2,6 +2,13 @@
    admin.css — Minimal admin shell styling.
    Built entirely on tokens.css variables from the public site so the look
    stays consistent; does not touch or redesign the public portfolio.
+
+   FINAL QA item #5: this file is layered ON TOP of components.css, which
+   is now also linked from admin-header.php (see the note in that file —
+   that missing <link> was the main reason admin looked flat: .btn,
+   .link-text etc had zero styling before). The additions below are a
+   light polish pass — spacing, hover/focus feedback, table readability,
+   empty states — without changing the page structure or architecture.
    ========================================================================== */
 
 .admin-body {
@@ -43,19 +50,29 @@
 .admin-sidebar nav a,
 .admin-nav__disabled {
   display: block;
-  padding: var(--space-2) var(--space-2);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   font-size: var(--fs-small);
+  border-left: 2px solid transparent;
+  transition: background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
 }
 
 .admin-sidebar nav a {
   color: var(--text-secondary);
 }
 
-.admin-sidebar nav a:hover,
-.admin-sidebar nav a[aria-current="page"] {
+.admin-sidebar nav a:hover {
   color: var(--text);
   background: var(--card);
+}
+
+.admin-sidebar nav a[aria-current="page"] {
+  color: var(--accent-bright);
+  background: var(--card);
+  border-left-color: var(--accent);
+  font-weight: 600;
 }
 
 .admin-nav__disabled {
@@ -85,6 +102,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--card);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
 .admin-field {
@@ -106,6 +124,14 @@
   color: var(--text);
   font-size: var(--fs-body);
   font-family: var(--font-sans);
+  transition: border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.admin-field input:hover,
+.admin-field textarea:hover,
+.admin-field select:hover {
+  border-color: var(--text-muted);
 }
 
 .admin-field textarea {
@@ -115,11 +141,16 @@
   resize: vertical;
 }
 
+.admin-field select {
+  cursor: pointer;
+}
+
 .admin-field input:focus-visible,
 .admin-field textarea:focus-visible,
 .admin-field select:focus-visible {
   outline: 2px solid var(--accent-bright);
   outline-offset: 2px;
+  border-color: var(--accent);
 }
 
 .admin-field-row {
@@ -139,12 +170,14 @@
   width: 18px;
   height: 18px;
   flex: none;
+  accent-color: var(--accent);
 }
 
 .admin-alert {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--error);
   border-radius: var(--radius-md);
+  background: rgba(242, 114, 122, 0.08);
   color: var(--error);
   font-size: var(--fs-small);
 }
@@ -160,6 +193,8 @@
   justify-content: space-between;
   gap: var(--space-4);
   margin-bottom: var(--space-5);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
 }
 
 .admin-dashboard__note {
@@ -187,6 +222,15 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--card);
+  transition: border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+.admin-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px var(--accent-glow-soft);
+  transform: translateY(-1px);
 }
 
 .admin-card__label {
@@ -212,21 +256,35 @@
   max-width: 560px;
 }
 
-/* ---- CRUD forms (Education / Experience / Skills / Certifications / Projects / Media) ---- */
+/* ---- CRUD forms (Education / Experience / Skills / Certifications / Projects / Social / Contact / Media / Messages) ---- */
 .admin-crud form {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   max-width: 640px;
   margin-bottom: var(--space-7);
-  padding-bottom: var(--space-6);
-  border-bottom: 1px solid var(--border);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+
+/* Delete/mark-read mini-forms inside table rows should stay inline and
+   unstyled as boxes — only the outer create/edit form gets the card
+   treatment above. */
+.admin-table__actions form {
+  padding: 0;
+  border: 0;
+  background: none;
+  max-width: none;
 }
 
 .admin-form-actions {
   display: flex;
   align-items: center;
   gap: var(--space-4);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
 }
 
 .admin-crud__list-title {
@@ -257,6 +315,14 @@
   color: var(--text-secondary);
   font-weight: 600;
   background: var(--surface);
+}
+
+.admin-table tbody tr {
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.admin-table tbody tr:hover {
+  background: var(--surface-elevated);
 }
 
 .admin-table tbody tr:last-child td {
@@ -306,5 +372,9 @@
 
   .admin-field-row {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-crud form {
+    padding: var(--space-4);
   }
 }
