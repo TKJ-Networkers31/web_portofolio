@@ -36,10 +36,17 @@ declare(strict_types=1);
  *   `<a href="#" data-dummy aria-disabled="true">` — TIDAK ADA form,
  *   TIDAK ADA handler. Diganti dengan <form method="post"> nyata yang
  *   diproses di bagian atas file ini lewat submitContactMessage()
- *   (includes/functions.php, additive ke tabel `messages` baru). Jika
+ *   (includes/functions.php, tabel `contact_messages`). Jika
  *   penyimpanan gagal (mis. migrasi belum dijalankan / DB tidak
  *   tersedia), pengguna diberi tahu APA ADANYA — tidak ada pesan sukses
  *   palsu.
+ *
+ * PHASE 5.3: Profile Photo sekarang benar-benar ditampilkan di section
+ * About — sebelumnya slot ini selalu berupa placeholder statis
+ * "[CONTENT REQUIRED]" walau admin/profile.php sudah punya kolom
+ * photo_path. $profilePhotoUrl dihitung dari $publicProfile['photo_path']
+ * lewat publicAssetUrl() (includes/functions.php); jika kosong, fallback
+ * ke placeholder lama persis seperti sebelumnya — tidak ada yang hilang.
  */
 
 define('SITE_BOOT', true);
@@ -102,6 +109,13 @@ $aboutLead = ($publicProfile['bio'] ?? '') !== ''
     : "I'm a vocational student focusing on network engineering, infrastructure, automation, and AI systems.";
 
 $profileLocation = ($publicProfile['location'] ?? '') !== '' ? $publicProfile['location'] : null;
+
+/* PHASE 5.3: URL foto profil (root-absolute atau URL asli jika sudah
+ * absolute), kosong kalau admin belum set photo_path — About section di
+ * bawah fallback ke placeholder lama untuk kasus itu. */
+$profilePhotoUrl = ($publicProfile['photo_path'] ?? '') !== ''
+    ? publicAssetUrl($publicProfile['photo_path'])
+    : '';
 
 /* Phase 4.3: education dari tabel `education`, dengan fallback ke placeholder Phase 3.1. */
 $educationEntries = getEducationList();
@@ -307,10 +321,16 @@ require __DIR__ . '/includes/header.php';
     <!-- ===================== ABOUT ===================== -->
     <section class="section" id="about" aria-labelledby="about-title">
       <div class="container about-grid">
+<?php if ($profilePhotoUrl !== ''): ?>
+        <div class="photo-placeholder reveal" role="img" aria-label="Profile photo of <?= e($publicProfile['full_name'] ?? 'Mohamad Lingga Syahputra') ?>">
+          <img class="photo-placeholder__image" src="<?= e($profilePhotoUrl) ?>" alt="">
+        </div>
+<?php else: ?>
         <div class="photo-placeholder reveal" role="img" aria-label="Profile photo placeholder">
           <span class="placeholder">[CONTENT REQUIRED]</span>
           <span class="meta">Profile photo, 4:5</span>
         </div>
+<?php endif; ?>
 
         <div class="about-body reveal delay-1">
           <h2 id="about-title">About</h2>

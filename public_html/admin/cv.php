@@ -12,6 +12,15 @@ declare(strict_types=1);
  *
  * Only one CV may have is_current = 1 at a time, enforced in a
  * transaction on every save/set-active — not just at the UI level.
+ *
+ * FINAL QA fix: two PRG redirects below used invalid PHP syntax
+ *   header('Location: ' . adminUrl('cv.php')?saved=1');
+ * ('?saved=1' was left outside the string, and the string was never
+ * concatenated correctly). This is a fatal parse error — PHP cannot
+ * compile the file at all, so EVERY request to cv.php (even a plain
+ * GET) previously failed with a 500 error, not just the save action.
+ * Fixed to match the same '. "?...=1"' concatenation pattern used by
+ * every other admin CRUD page (education.php, skills.php, etc.).
  */
 
 require __DIR__ . '/../../config/config.php';
@@ -180,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         makeCvActive($pdo, $postId);
                     }
 
-                    header('Location: ' . adminUrl('cv.php')?saved=1');
+                    header('Location: ' . adminUrl('cv.php') . '?saved=1');
                     exit;
                 }
             } else {
@@ -199,7 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     makeCvActive($pdo, $newId);
                 }
 
-                header('Location: ' . adminUrl('cv.php')?saved=1');
+                header('Location: ' . adminUrl('cv.php') . '?saved=1');
                 exit;
             }
         }

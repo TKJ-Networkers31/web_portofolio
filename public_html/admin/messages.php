@@ -7,12 +7,19 @@ declare(strict_types=1);
  *
  * FINAL QA item #4 — "Send Message" audit result.
  *
- * BEFORE this fix: the public "Send Message" button was a disabled dummy
- * link (`<a href="#" data-dummy aria-disabled="true">`) with NO form and
- * NO handler anywhere in the codebase — nothing was ever processed or
- * stored. See public_html/index.php for the new real form + handler
- * (submitContactMessage() in includes/functions.php), which inserts into
- * the new, additive `messages` table (database/schema-*.sql).
+ * FIX (found while diagnosing "message gak ke migrate"): this file, and
+ * includes/functions.php::submitContactMessage(), were both written
+ * against a table named `messages` — but database/schema-sqlite.sql and
+ * schema-mysql.sql only ever define `contact_messages`. That table name
+ * never existed, so the public contact form silently failed to persist
+ * (submitContactMessage() returned false → "couldn't be sent" notice),
+ * and this admin page always reported the table missing even right
+ * after a successful migration. Every query below now targets
+ * `contact_messages` — the table your migration actually created —
+ * instead of a table name that was never in the schema. No schema
+ * change needed; existing migrated data (if any ever landed in a
+ * `messages` table some other way) is untouched, since we simply never
+ * read/write that name anymore.
  *
  * This page is the admin-side counterpart: list / mark read / delete,
  * following the exact same pattern as admin/media.php (PDO prepared
@@ -33,14 +40,14 @@ function loadMessageRows(PDO $pdo): array
     try {
         $stmt = $pdo->query(
             'SELECT id, name, email, message, is_read, created_at
-             FROM messages
+             FROM contact_messages
              ORDER BY created_at DESC, id DESC'
         );
 
         return $stmt ? $stmt->fetchAll() : [];
     } catch (Throwable $e) {
         // Table may not exist yet if database/migrate.php (or setup.php)
-        // hasn't been re-run since this fix was applied — degrade to an
+        // hasn't been run since this fix was applied — degrade to an
         // empty list with a clear notice below, never a fatal error.
         return [];
     }
@@ -49,7 +56,7 @@ function loadMessageRows(PDO $pdo): array
 function messagesTableExists(PDO $pdo): bool
 {
     try {
-        $pdo->query('SELECT 1 FROM messages LIMIT 1');
+        $pdo->query('SELECT 1 FROM contact_messages LIMIT 1');
         return true;
     } catch (Throwable $e) {
         return false;
@@ -70,16 +77,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($id <= 0) {
         $errors[] = 'Invalid message.';
     } elseif ($action === 'delete') {
-        $stmt = $pdo->prepare('DELETE FROM messages WHERE id = :id');
+        $stmt = $pdo->prepare('DELETE FROM contact_messages WHERE id = :id');
         $stmt->execute(['id' => $id]);
 
-        header('Location: /admin/messages.php?deleted=1');
+        header('Location: ' . adminUrl('messages.php') . '?deleted=1');
         exit;
     } elseif ($action === 'mark_read') {
-        $stmt = $pdo->prepare('UPDATE messages SET is_read = 1 WHERE id = :id');
+        $stmt = $pdo->prepare('UPDATE contact_messages SET is_read = 1 WHERE id = :id');
         $stmt->execute(['id' => $id]);
 
-        header('Location: /admin/messages.php?read=1');
+        header('Location: ' . adminUrl('messages.php') . '?read=1');
         exit;
     }
 }
@@ -114,10 +121,10 @@ require __DIR__ . '/includes/admin-header.php';
 
 <?php if (!$tableExists): ?>
   <p class="admin-alert" role="alert">
-    The <code>messages</code> table does not exist yet on this database.
-    Run <code>php database/migrate.php</code> (or the browser setup page)
-    again to create it — it's an additive change and will not touch any
-    existing data.
+    The <code>contact_messages</code> table does not exist yet on this
+    database. Run <code>php database/migrate.php</code> (or the browser
+    setup page) again to create it — it's an additive change and will
+    not touch any existing data.
   </p>
 <?php endif; ?>
 

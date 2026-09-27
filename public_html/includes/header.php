@@ -5,22 +5,12 @@
  * Membuka dokumen HTML: <head>, skip link, navbar, dan tag <main>.
  * Ditutup oleh includes/footer.php.
  *
- * Variabel opsional yang dapat diatur sebelum include:
- *   $pageTitle, $pageDescription, $canonicalUrl, $pageRobots, $ogType
- *   $currentPage ('home' default | 'work' | 'project') — lihat Phase 3.2
- *
- * FINAL QA FIX (#9 — CSS tidak termuat di halaman project detail):
- * Seluruh asset (CSS/JS) dan tautan navigasi internal di file ini dulu
- * memakai path RELATIF (mis. "assets/css/tokens.css", "work.php").
- * Path relatif di-resolve oleh browser terhadap URL saat ini, bukan
- * terhadap lokasi file di server. Untuk index.php/work.php (di root)
- * kebetulan tetap benar, tapi untuk /project/{slug} (pretty URL dari
- * .htaccess) path yang sama di-resolve menjadi /project/assets/... dan
- * /project/work.php — 404, sehingga halaman tampil tanpa styling.
- * Perbaikan: asset() dan seluruh href internal di header/footer/
- * breadcrumb sekarang root-absolute (diawali "/"), sesuai RewriteBase "/"
- * pada public_html/.htaccess. Tidak ada perubahan pada isi CSS/JS itu
- * sendiri, hanya cara path-nya ditulis.
+ * PHASE 6: nav-env (ecosystem switcher) sebelumnya berisi 2 tautan dummy
+ * ("Business", "Lab" — <a href="#" data-dummy aria-disabled="true">).
+ * Sekarang membaca URL nyata dari getEcosystemLinks() (includes/
+ * functions.php), dan "Business" menjadi label resmi "LS Technology".
+ * Jika sebuah URL belum diatur (.env kosong), entri itu tetap tampil
+ * sebagai dummy/disabled persis seperti sebelumnya — tidak ada link mati.
  */
 
 if (!defined('SITE_BOOT')) {
@@ -76,6 +66,9 @@ $workAriaCurrent = match ($currentPage) {
     'project' => 'true', // halaman turunan Work (Phase 2 IA §5.3)
     default   => null,
 };
+
+// PHASE 6: ecosystem URLs — null if not configured in .env.
+$ecoLinks = getEcosystemLinks();
 ?>
 
 <!doctype html>
@@ -152,13 +145,33 @@ $workAriaCurrent = match ($currentPage) {
           </ul>
         </nav>
 
+        <!--
+          PHASE 6: ecosystem switcher — real links from .env (ROOT_URL,
+          LAB_URL, BUSINESS_URL). Any URL left empty renders exactly like
+          the old dummy state (data-dummy, aria-disabled) so there is
+          never a dead link. "Business" is now labelled "LS Technology".
+        -->
         <nav class="nav-env" aria-label="Ecosystem">
           <ul role="list">
             <li><a href="/" aria-current="true">Portfolio</a></li>
-            <!-- DUMMY: nanti menjadi subdomain https://business.mohamadlingga.my.id -->
-            <li><a href="#" data-dummy aria-disabled="true">Business</a></li>
-            <!-- DUMMY: nanti menjadi subdomain https://lab.mohamadlingga.my.id -->
+
+<?php if (!empty($ecoLinks['lab'])): ?>
+            <li><a href="<?= e($ecoLinks['lab']) ?>" rel="noopener noreferrer">Lab</a></li>
+<?php else: ?>
             <li><a href="#" data-dummy aria-disabled="true">Lab</a></li>
+<?php endif; ?>
+
+<?php if (!empty($ecoLinks['business'])): ?>
+            <li><a href="<?= e($ecoLinks['business']) ?>" rel="noopener noreferrer">LS Technology</a></li>
+<?php else: ?>
+            <li><a href="#" data-dummy aria-disabled="true">LS Technology</a></li>
+<?php endif; ?>
+
+<?php if (!empty($ecoLinks['root'])): ?>
+            <li><a href="<?= e($ecoLinks['root']) ?>" rel="noopener noreferrer">Root</a></li>
+<?php else: ?>
+            <li><a href="#" data-dummy aria-disabled="true">Root</a></li>
+<?php endif; ?>
           </ul>
         </nav>
       </div>

@@ -24,6 +24,15 @@ declare(strict_types=1);
  * data/projects.php bila DB kosong/gagal — lihat includes/functions.php.
  * Bentuk array $project identik apa pun sumbernya, jadi seluruh logika
  * di bawah (404, redirect, SEO, breadcrumb, related) tidak berubah.
+ *
+ * PHASE 5.3: Gallery section rewritten to a responsive grid with a
+ * simple lightbox (assets/js/lightbox.js + style.css additions) and
+ * unlimited items — no fixed count anywhere. Non-image media (PDF,
+ * other documents) is split into its own "Documentation" attachment
+ * list instead of being mixed into the image grid, since those still
+ * need to open as a normal attachment rather than a lightbox. Routing,
+ * SEO fields (canonical/OG/robots), and every other section below are
+ * untouched.
  */
 
 define('SITE_BOOT', true);
@@ -90,6 +99,20 @@ $media = ($project['_source'] ?? null) === 'db' && !empty($project['id'])
     ? getProjectMedia((int) $project['id'])
     : [];
 
+/*
+ * PHASE 5.3: split into image items (rendered as the lightbox gallery)
+ * vs everything else (rendered as plain "Documentation" attachment
+ * links, same as before — PDFs/other files still open as a normal
+ * link, never forced into the image grid). No count is assumed either
+ * way; both lists can be empty, one item, or many.
+ */
+$galleryImages = array_values(array_filter($media, static function (array $item): bool {
+    return ($item['type'] ?? 'image') === 'image';
+}));
+$attachments = array_values(array_filter($media, static function (array $item): bool {
+    return ($item['type'] ?? 'image') !== 'image';
+}));
+
 $pageTitle       = $project['title'] . ' · Mohamad Lingga Syahputra';
 $pageDescription = $project['summary'];
 $canonicalUrl    = 'https://portofolio.mohamadlingga.my.id' . projectUrl($project['slug']);
@@ -140,25 +163,44 @@ require __DIR__ . '/includes/project-header.php';
           <?= projectTopologySvg($project['slug']) ?>
         </div>
 
-<?php if (!empty($media)): ?>
-        <!-- ---- Gallery (Phase 4.9, project_media) ----
-             Deliberately unstyled: no new CSS classes/grid added, to
-             stay inside the "no UI redesign" scope lock. Plain stacked
-             list; a future phase can style it if a gallery layout is
-             wanted. -->
+<?php if (!empty($galleryImages)): ?>
+        <!-- ---- Gallery (project_media, PHASE 5.3: responsive grid + lightbox) ----
+             Unlimited items, never a hardcoded count. The lightbox is
+             plain vanilla JS (assets/js/lightbox.js); without JS every
+             thumbnail is still a normal <a href> straight to the
+             full-size image, so nothing breaks for a no-JS visitor. -->
         <div class="detail-block reveal">
           <h2>Gallery</h2>
-          <ul role="list">
-<?php foreach ($media as $item): ?>
-            <li>
-<?php if (($item['type'] ?? 'image') === 'image'): ?>
-              <img src="<?= e((string) $item['path']) ?>" alt="<?= e((string) ($item['alt_text'] ?? '')) ?>">
-<?php else: ?>
-              <a class="link-text" href="<?= e((string) $item['path']) ?>" target="_blank" rel="noopener noreferrer"><?= e((string) ($item['alt_text'] !== '' ? $item['alt_text'] : $item['path'])) ?></a>
+          <ul class="gallery-grid" role="list">
+<?php foreach ($galleryImages as $item): ?>
+<?php $itemAlt = (string) ($item['alt_text'] ?? ''); ?>
+            <li class="gallery-item">
+              <a class="gallery-item__link" href="<?= e((string) $item['path']) ?>" data-lightbox<?= $itemAlt !== '' ? ' data-caption="' . e($itemAlt) . '"' : '' ?>>
+                <img src="<?= e((string) $item['path']) ?>" alt="<?= e($itemAlt) ?>" loading="lazy">
+              </a>
+<?php if ($itemAlt !== ''): ?>
+              <p class="gallery-item__caption meta"><?= e($itemAlt) ?></p>
 <?php endif; ?>
-<?php if (!empty($item['alt_text'])): ?>
-              <p class="meta"><?= e((string) $item['alt_text']) ?></p>
+            </li>
+<?php endforeach; ?>
+          </ul>
+        </div>
 <?php endif; ?>
+
+<?php if (!empty($attachments)): ?>
+        <!-- ---- Documentation (non-image project_media: PDF, other files) ---- -->
+        <div class="detail-block reveal">
+          <h2>Documentation</h2>
+          <ul class="attachment-list" role="list">
+<?php foreach ($attachments as $item): ?>
+<?php
+    $itemAlt  = (string) ($item['alt_text'] ?? '');
+    $itemPath = (string) $item['path'];
+    $itemType = (string) ($item['type'] ?? 'file');
+?>
+            <li class="attachment-list__item">
+              <a class="link-text" href="<?= e($itemPath) ?>" target="_blank" rel="noopener noreferrer"><?= e($itemAlt !== '' ? $itemAlt : $itemPath) ?></a>
+              <span class="meta attachment-list__type"><?= e(strtoupper($itemType)) ?></span>
             </li>
 <?php endforeach; ?>
           </ul>

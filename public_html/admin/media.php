@@ -5,27 +5,43 @@ declare(strict_types=1);
 /**
  * public_html/admin/media.php
  *
- * Phase 4.7 — Media Manager (list / create / edit / delete), metadata
- * only. Uses the existing `media` table exactly as-is (schema unchanged):
- * filename, path, mime_type, size, alt_text, uploaded_at.
+ * PHASE 5.3 — Universal Media Library.
  *
- * IMPORTANT: no upload engine, no filesystem writes/deletes, no image
- * processing. "path" is a plain text field — an existing URL or an
- * already-uploaded file's relative path — same convention as
- * project_media.path and documents.file_path. Deleting a row never
- * touches the filesystem, only the DB record.
+ * Was: metadata-only CRUD (Phase 4.7) — filename/path/mime/size all had
+ * to be typed by hand, list was a plain table.
  *
- * Search: filename / alt_text (LIKE), the only text fields the schema
- * offers for this. Filter: `media` has no discrete "type" column, so
- * type filtering is derived from the existing mime_type prefix
- * (image/*, video/*, application|text/* as "document", everything else
- * as "other") — a UI convenience only, not a schema addition.
+ * Now: a real asset library.
+ *   - "Upload" tab: real file picker (+ drag & drop), server-side
+ *     validation, auto filename/MIME/size detection, unique generated
+ *     filename, stored under public_html/assets/media/, `media` row
+ *     created automatically. Nothing here is typed by the user.
+ *   - "Add External URL" tab: the OLD manual-entry form, kept exactly as
+ *     it was (filename/path/mime/size/alt fields) — not removed, just
+ *     demoted to a secondary, clearly-labelled option for the one case
+ *     upload can't cover: referencing a file that already lives
+ *     somewhere else (a URL, or a path uploaded outside this tool).
+ *   - Library: thumbnail grid (image preview, icon for non-image),
+ *     search + type filter (same behaviour as before, logic now shared
+ *     via app/media.php::mediaSearchRows() so the pickers on
+ *     admin/profile.php and admin/project-media.php stay in sync with
+ *     this page), inline path "Copy" for reuse elsewhere, Edit/Delete.
+ *   - Export / Import: wired to the existing, unchanged
+ *     exportMediaManifest()/importMediaManifest() in app/media.php —
+ *     same format, same dedupe-by-path behaviour, no second system.
+ *
+ * Uses the existing `media` table and existing storage convention only
+ * (schema unchanged). Deleting a row removes the DB record; if the
+ * asset was uploaded through this tool (path under assets/media/) the
+ * underlying file is also removed, since this tool now owns that
+ * file's whole lifecycle — a manually-entered external URL is never
+ * touched on delete.
  */
 
 require __DIR__ . '/../../config/config.php';
 require __DIR__ . '/../../config/database.php';
 require __DIR__ . '/../../app/helpers.php';
 require __DIR__ . '/../../app/admin-auth.php';
+require __DIR__ . '/../../app/media.php';
 
 requireAdmin();
 
@@ -55,88 +71,20 @@ function loadMediaRow(PDO $pdo, int $id): ?array
     return $row ?: null;
 }
 
-/**
- * Builds the WHERE clause + params for the list query from $q (search
- * over filename/alt_text) and $filter (derived mime_type category).
- * Kept separate from loadMediaRow() so a crafted search/filter can never
- * affect single-row lookups used by edit/delete/save.
- */
-function buildMediaListWhere(string $q, string $filter): array
-{
-    $conditions = [];
-    $params     = [];
+/* ---------- Export: plain JSON download, before any HTML is sent ---------- */
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
+    $manifest = exportMediaManifest($pdo);
+    $json     = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
-    if ($q !== '') {
-        $conditions[] = '(filename LIKE :q OR alt_text LIKE :q)';
-        $params['q']  = '%' . $q . '%';
-    }
-
-    if (in_array($filter, MEDIA_TYPE_FILTERS, true)) {
-        switch ($filter) {
-            case 'image':
-                $conditions[] = "mime_type LIKE 'image/%'";
-                break;
-            case 'video':
-                $conditions[] = "mime_type LIKE 'video/%'";
-                break;
-            case 'document':
-                $conditions[] = "(mime_type LIKE 'application/%' OR mime_type LIKE 'text/%')";
-                break;
-            case 'other':
-                $conditions[] = "(mime_type IS NULL OR mime_type = '' OR (
-                    mime_type NOT LIKE 'image/%'
-                    AND mime_type NOT LIKE 'video/%'
-                    AND mime_type NOT LIKE 'application/%'
-                    AND mime_type NOT LIKE 'text/%'
-                ))";
-                break;
-        }
-    }
-
-    $where = $conditions !== [] ? ('WHERE ' . implode(' AND ', $conditions)) : '';
-
-    return [$where, $params];
-}
-
-function loadMediaRows(PDO $pdo, string $q, string $filter): array
-{
-    [$where, $params] = buildMediaListWhere($q, $filter);
-
-    $stmt = $pdo->prepare(
-        "SELECT id, filename, path, mime_type, size, alt_text, uploaded_at
-         FROM media
-         {$where}
-         ORDER BY uploaded_at DESC, id DESC"
-    );
-    $stmt->execute($params);
-
-    return $stmt->fetchAll();
-}
-
-function formatBytes(?int $bytes): string
-{
-    if ($bytes === null) {
-        return '';
-    }
-
-    if ($bytes < 1024) {
-        return $bytes . ' B';
-    }
-
-    $units = ['KB', 'MB', 'GB', 'TB'];
-    $value = $bytes / 1024;
-    $unit  = 0;
-
-    while ($value >= 1024 && $unit < count($units) - 1) {
-        $value /= 1024;
-        $unit++;
-    }
-
-    return round($value, 1) . ' ' . $units[$unit];
+    header('Content-Type: application/json');
+    header('Content-Disposition: attachment; filename="media-export-' . date('Y-m-d') . '.json"');
+    echo $json;
+    exit;
 }
 
 $errors  = [];
 $success = '';
+$importResult = null;
 $editId  = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 
 $q      = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
@@ -165,6 +113,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!verifyCsrf($_POST['csrf_token'] ?? null)) {
         $errors[] = 'Your session expired. Please reload the page and try again.';
+    } elseif ($action === 'upload') {
+        $altText = trim((string) ($_POST['alt_text'] ?? ''));
+        $result  = storeUploadedMedia($pdo, $_FILES['file'] ?? [], $altText);
+
+        if (!$result['ok']) {
+            $errors[] = $result['error'] ?? 'The upload failed.';
+        } else {
+            header('Location: ' . adminUrl('media.php') . '?saved=1');
+            exit;
+        }
+    } elseif ($action === 'import') {
+        $importJson = '';
+
+        if (isset($_FILES['import_file']) && (int) ($_FILES['import_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $importJson = (string) file_get_contents($_FILES['import_file']['tmp_name']);
+        } else {
+            $importJson = trim((string) ($_POST['import_json'] ?? ''));
+        }
+
+        if ($importJson === '') {
+            $errors[] = 'Choose a JSON file or paste an export to import.';
+        } else {
+            $importResult = importMediaManifest($pdo, $importJson);
+            if (!empty($importResult['errors'])) {
+                $errors = array_merge($errors, $importResult['errors']);
+            } else {
+                $success = "Import complete — {$importResult['imported']} added, {$importResult['skipped']} already existed"
+                    . (!empty($importResult['missing']) ? ', ' . count($importResult['missing']) . ' reference a file not found on disk' : '')
+                    . '.';
+            }
+        }
     } elseif ($action === 'delete') {
         $deleteId = (int) ($_POST['id'] ?? 0);
 
@@ -175,12 +154,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($existing === null) {
                 $errors[] = 'That media item no longer exists.';
             } else {
-                // Metadata only — the underlying file on disk (if any) is
-                // never touched. No upload/storage engine exists yet.
                 $stmt = $pdo->prepare('DELETE FROM media WHERE id = :id');
                 $stmt->execute(['id' => $deleteId]);
 
-                header('Location: /admin/media.php?deleted=1');
+                // Only remove the physical file for assets this tool
+                // uploaded itself (path under assets/media/) — a
+                // manually-entered external URL / arbitrary path is
+                // metadata-only and is never touched on disk.
+                $path = (string) $existing['path'];
+                if (str_starts_with($path, 'assets/media/')) {
+                    $absolute = mediaAbsolutePath($path);
+                    if ($absolute !== null && is_file($absolute)) {
+                        @unlink($absolute);
+                    }
+                }
+
+                header('Location: ' . adminUrl('media.php') . '?deleted=1');
                 exit;
             }
         }
@@ -243,7 +232,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
                     $stmt->execute($params);
 
-                    header('Location: /admin/media.php?saved=1');
+                    header('Location: ' . adminUrl('media.php') . '?saved=1');
                     exit;
                 }
             } else {
@@ -253,7 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $stmt->execute($params);
 
-                header('Location: /admin/media.php?saved=1');
+                header('Location: ' . adminUrl('media.php') . '?saved=1');
                 exit;
             }
         }
@@ -270,26 +259,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 }
 
-$rows = loadMediaRows($pdo, $q, $filter);
+$rows = mediaSearchRows($pdo, $q, $filter);
 
 $pageTitle = 'Media';
 require __DIR__ . '/includes/admin-header.php';
 ?>
 
-<div class="admin-crud">
+<div class="admin-crud admin-media">
   <div class="admin-dashboard__head">
     <div>
-      <p class="meta">Media</p>
-      <h1><?= $editId > 0 ? 'Edit Media Item' : 'Add Media Item' ?></h1>
+      <p class="meta">Media Library</p>
+      <h1><?= $editId > 0 ? 'Edit Media Item' : 'Media Library' ?></h1>
     </div>
   </div>
 
   <p class="admin-dashboard__note">
-    This manages metadata in the <code>media</code> table only — filename,
-    path, MIME type, size, and alt text. There is no upload engine yet:
-    <code>path</code> is a plain relative path or URL you enter yourself,
-    the same convention as Project Media and CV. Deleting an entry here
-    removes the database record only; it never touches a file on disk.
+    Upload a file and its filename, MIME type, and size are detected
+    automatically — nothing to type. Use "Add External URL" only for an
+    asset that already lives somewhere else (an existing URL, or a file
+    uploaded outside this tool).
   </p>
 
 <?php if ($success !== ''): ?>
@@ -306,30 +294,32 @@ require __DIR__ . '/includes/admin-header.php';
   </p>
 <?php endif; ?>
 
-  <form method="post" action="media.php" novalidate>
+<?php if ($editId > 0 && $editingRow !== null): ?>
+  <!-- ---- Edit existing record (metadata only — re-upload isn't offered here; delete + upload again to replace the file itself) ---- -->
+  <form method="post" action="media.php" class="admin-panel-form" novalidate>
     <?= csrfField() ?>
     <input type="hidden" name="action" value="save">
-    <input type="hidden" name="id" value="<?= $editId > 0 ? (int) $editId : '' ?>">
+    <input type="hidden" name="id" value="<?= (int) $editId ?>">
 
     <label class="admin-field">
       <span>Filename</span>
-      <input type="text" name="filename" value="<?= e($formValues['filename']) ?>" maxlength="191" required autofocus placeholder="e.g. topology-diagram.png">
+      <input type="text" name="filename" value="<?= e($formValues['filename']) ?>" maxlength="191" required autofocus>
     </label>
 
     <label class="admin-field">
       <span>Path or URL</span>
-      <input type="text" name="path" value="<?= e($formValues['path']) ?>" maxlength="255" placeholder="assets/media/example.jpg or https://..." required>
+      <input type="text" name="path" value="<?= e($formValues['path']) ?>" maxlength="255" required>
     </label>
 
     <div class="admin-field-row">
       <label class="admin-field">
         <span>MIME type</span>
-        <input type="text" name="mime_type" value="<?= e($formValues['mime_type']) ?>" maxlength="127" placeholder="e.g. image/png">
+        <input type="text" name="mime_type" value="<?= e($formValues['mime_type']) ?>" maxlength="127">
       </label>
 
       <label class="admin-field">
         <span>Size (bytes)</span>
-        <input type="number" name="size" value="<?= e($formValues['size']) ?>" min="0" step="1" placeholder="e.g. 204800">
+        <input type="number" name="size" value="<?= e($formValues['size']) ?>" min="0" step="1">
       </label>
     </div>
 
@@ -339,16 +329,155 @@ require __DIR__ . '/includes/admin-header.php';
     </label>
 
     <div class="admin-form-actions">
-      <button class="btn btn--primary" type="submit"><?= $editId > 0 ? 'Save Changes' : 'Add Media' ?></button>
-<?php if ($editId > 0): ?>
+      <button class="btn btn--primary" type="submit">Save Changes</button>
       <a class="link-text" href="media.php">Cancel</a>
-<?php endif; ?>
     </div>
   </form>
+<?php else: ?>
 
-  <h2 class="admin-crud__list-title">Existing Media</h2>
+  <!-- ---- Upload / Add External URL tabs ---- -->
+  <div class="admin-tabs" data-admin-tabs>
+    <div class="admin-tabs__nav" role="tablist">
+      <button type="button" class="admin-tabs__tab is-active" role="tab" data-tab-target="tab-upload">Upload</button>
+      <button type="button" class="admin-tabs__tab" role="tab" data-tab-target="tab-url">Add External URL</button>
+      <button type="button" class="admin-tabs__tab" role="tab" data-tab-target="tab-import-export">Import / Export</button>
+    </div>
 
-  <form method="get" action="media.php" class="admin-field-row" style="margin-bottom: var(--space-5); align-items: end;">
+    <div class="admin-tabs__panel is-active" id="tab-upload" role="tabpanel">
+      <form method="post" action="media.php" enctype="multipart/form-data" class="admin-panel-form" novalidate>
+        <?= csrfField() ?>
+        <input type="hidden" name="action" value="upload">
+
+        <label class="admin-dropzone" data-dropzone for="media-upload-input">
+          <input type="file" id="media-upload-input" name="file" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,video/mp4,text/plain" required data-dropzone-input>
+          <span class="admin-dropzone__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 16V4M12 4 7 9M12 4l5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+          </span>
+          <span class="admin-dropzone__text">
+            <strong>Click to choose a file</strong> or drag and drop it here
+          </span>
+          <span class="meta">JPEG, PNG, GIF, WebP, PDF, MP4, or TXT — up to <?= e(formatBytes(mediaMaxBytes())) ?></span>
+          <span class="admin-dropzone__filename meta" data-dropzone-filename></span>
+        </label>
+
+        <label class="admin-field">
+          <span>Alt text (optional)</span>
+          <input type="text" name="alt_text" maxlength="255" placeholder="Describe the file for accessibility / captions">
+        </label>
+
+        <div class="admin-form-actions">
+          <button class="btn btn--primary" type="submit">Upload &amp; Add to Library</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="admin-tabs__panel" id="tab-url" role="tabpanel" hidden>
+      <p class="admin-dashboard__note">
+        For an asset that already exists elsewhere (an external URL, or a
+        file placed on the server outside this tool). Filename, path, MIME
+        type, and size are <strong>not</strong> auto-detected here — enter
+        them yourself.
+      </p>
+      <form method="post" action="media.php" class="admin-panel-form" novalidate>
+        <?= csrfField() ?>
+        <input type="hidden" name="action" value="save">
+        <input type="hidden" name="id" value="">
+
+        <label class="admin-field">
+          <span>Filename</span>
+          <input type="text" name="filename" maxlength="191" placeholder="e.g. topology-diagram.png" required>
+        </label>
+
+        <label class="admin-field">
+          <span>Path or URL</span>
+          <input type="text" name="path" maxlength="255" placeholder="assets/media/example.jpg or https://..." required>
+        </label>
+
+        <div class="admin-field-row">
+          <label class="admin-field">
+            <span>MIME type</span>
+            <input type="text" name="mime_type" maxlength="127" placeholder="e.g. image/png">
+          </label>
+
+          <label class="admin-field">
+            <span>Size (bytes)</span>
+            <input type="number" name="size" min="0" step="1" placeholder="e.g. 204800">
+          </label>
+        </div>
+
+        <label class="admin-field">
+          <span>Alt text</span>
+          <input type="text" name="alt_text" maxlength="255">
+        </label>
+
+        <div class="admin-form-actions">
+          <button class="btn btn--secondary" type="submit">Add to Library</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="admin-tabs__panel" id="tab-import-export" role="tabpanel" hidden>
+      <div class="admin-import-export">
+        <div class="admin-import-export__col">
+          <h3>Export</h3>
+          <p class="admin-dashboard__note">
+            Downloads every asset's metadata (filename, path, MIME type,
+            size, alt text) as JSON. No credentials or secrets are
+            included — only what's already in the <code>media</code>
+            table.
+          </p>
+          <a class="btn btn--secondary" href="media.php?export=1">Download media-export.json</a>
+        </div>
+
+        <div class="admin-import-export__col">
+          <h3>Import</h3>
+          <p class="admin-dashboard__note">
+            Restores metadata from a previous export. An asset whose
+            <strong>path</strong> already exists in the library is
+            skipped, never overwritten. A file referenced by the import
+            that isn't actually present in storage is still recorded,
+            and flagged below, rather than silently dropped.
+          </p>
+          <form method="post" action="media.php" enctype="multipart/form-data" class="admin-panel-form" novalidate>
+            <?= csrfField() ?>
+            <input type="hidden" name="action" value="import">
+
+            <label class="admin-field">
+              <span>Export JSON file</span>
+              <input type="file" name="import_file" accept="application/json,.json">
+            </label>
+
+            <label class="admin-field">
+              <span>...or paste JSON</span>
+              <textarea name="import_json" rows="4" placeholder='{"format":"portfolio-media-v1", ...}'></textarea>
+            </label>
+
+            <div class="admin-form-actions">
+              <button class="btn btn--secondary" type="submit">Import</button>
+            </div>
+          </form>
+
+<?php if ($importResult !== null && empty($importResult['errors'])): ?>
+          <ul class="admin-import-summary" role="list">
+            <li><strong><?= (int) $importResult['imported'] ?></strong> imported</li>
+            <li><strong><?= (int) $importResult['skipped'] ?></strong> already existed (skipped)</li>
+<?php if (!empty($importResult['missing'])): ?>
+            <li class="admin-import-summary__warning">
+              <strong><?= count($importResult['missing']) ?></strong> imported but file not found on disk:
+              <code><?= e(implode(', ', $importResult['missing'])) ?></code>
+            </li>
+<?php endif; ?>
+          </ul>
+<?php endif; ?>
+        </div>
+      </div>
+    </div>
+  </div>
+<?php endif; ?>
+
+  <h2 class="admin-crud__list-title">Library</h2>
+
+  <form method="get" action="media.php" class="admin-field-row admin-media__search" style="align-items: end;">
     <label class="admin-field">
       <span>Search (filename / alt text)</span>
       <input type="text" name="q" value="<?= e($q) ?>" placeholder="Search...">
@@ -373,47 +502,59 @@ require __DIR__ . '/includes/admin-header.php';
   </form>
 
 <?php if (empty($rows) && $q === '' && $filter === ''): ?>
-  <p class="admin-dashboard__note">No media items yet. Add one using the form above.</p>
+  <div class="admin-empty-state">
+    <span class="admin-empty-state__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+    </span>
+    <p>No media yet. Upload your first file above.</p>
+  </div>
 <?php elseif (empty($rows)): ?>
-  <p class="admin-dashboard__note">No media items match your search/filter. <a class="link-text" href="media.php">Clear search &amp; filter</a>.</p>
+  <div class="admin-empty-state">
+    <p>No media matches your search/filter. <a class="link-text" href="media.php">Clear search &amp; filter</a>.</p>
+  </div>
 <?php else: ?>
-  <div class="admin-table-wrap">
-    <table class="admin-table">
-      <thead>
-        <tr>
-          <th>Filename</th>
-          <th>Path</th>
-          <th>MIME type</th>
-          <th>Size</th>
-          <th>Alt text</th>
-          <th>Uploaded</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
+  <div class="admin-media-grid">
 <?php foreach ($rows as $row): ?>
-        <tr>
-          <td><?= e((string) $row['filename']) ?></td>
-          <td><?= e((string) $row['path']) ?></td>
-          <td class="meta"><?= e((string) ($row['mime_type'] ?? '')) ?></td>
-          <td class="meta"><?= e(formatBytes($row['size'] !== null ? (int) $row['size'] : null)) ?></td>
-          <td class="meta"><?= e((string) ($row['alt_text'] ?? '')) ?></td>
-          <td class="meta"><?= e((string) $row['uploaded_at']) ?></td>
-          <td class="admin-table__actions">
-            <a class="link-text" href="media.php?edit=<?= (int) $row['id'] ?>">Edit</a>
-            <form method="post" action="media.php" onsubmit="return confirm('Delete this media record? This only removes the database entry, not any file on disk. This cannot be undone.');">
-              <?= csrfField() ?>
-              <input type="hidden" name="action" value="delete">
-              <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
-              <button class="link-text admin-table__delete" type="submit">Delete</button>
-            </form>
-          </td>
-        </tr>
+<?php
+    $category = mediaTypeCategory($row['mime_type']);
+    $url      = publicMediaUrl((string) $row['path']);
+?>
+    <article class="admin-media-card">
+      <div class="admin-media-card__thumb">
+<?php if ($category === 'image'): ?>
+        <img src="<?= e($url) ?>" alt="<?= e((string) ($row['alt_text'] ?? '')) ?>" loading="lazy">
+<?php else: ?>
+        <span class="admin-media-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><?= mediaTypeIconSvg($category) ?></svg></span>
+<?php endif; ?>
+      </div>
+      <div class="admin-media-card__body">
+        <p class="admin-media-card__name" title="<?= e((string) $row['filename']) ?>"><?= e((string) $row['filename']) ?></p>
+        <p class="meta">
+          <?= e((string) ($row['mime_type'] ?? 'unknown')) ?>
+<?php if ($row['size'] !== null): ?>
+           &middot; <?= e(formatBytes((int) $row['size'])) ?>
+<?php endif; ?>
+        </p>
+<?php if (!empty($row['alt_text'])): ?>
+        <p class="admin-media-card__alt meta"><?= e((string) $row['alt_text']) ?></p>
+<?php endif; ?>
+      </div>
+      <div class="admin-media-card__actions">
+        <button type="button" class="link-text" data-copy-path="<?= e($url) ?>">Copy path</button>
+        <a class="link-text" href="media.php?edit=<?= (int) $row['id'] ?>">Edit</a>
+        <form method="post" action="media.php" onsubmit="return confirm('Delete this media item? If it was uploaded through this tool, the file is removed too. This cannot be undone.');">
+          <?= csrfField() ?>
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
+          <button class="link-text admin-table__delete" type="submit">Delete</button>
+        </form>
+      </div>
+    </article>
 <?php endforeach; ?>
-      </tbody>
-    </table>
   </div>
 <?php endif; ?>
 </div>
+
+<script src="assets/admin-media.js" defer></script>
 
 <?php require __DIR__ . '/includes/admin-footer.php'; ?>

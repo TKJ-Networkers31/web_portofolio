@@ -7,6 +7,10 @@
  *
  * FINAL QA FIX (#9): tautan "Portfolio" sebelumnya "./" (relatif) — salah
  * resolve di bawah /project/{slug}. Sekarang root-absolute ("/").
+ *
+ * PHASE 5.3: assets/js/lightbox.js ditambahkan (script tambahan, bukan
+ * pengganti) untuk gallery di project.php — progressive enhancement,
+ * tanpa JS setiap gambar gallery tetap <a href> biasa ke file aslinya.
  */
 
 if (!defined('SITE_BOOT')) {
@@ -39,5 +43,6 @@ if (!defined('SITE_BOOT')) {
   <script src="<?= e(asset('assets/js/main.js')) ?>" defer></script>
   <script src="<?= e(asset('assets/js/navigation.js')) ?>" defer></script>
   <script src="<?= e(asset('assets/js/reveal.js')) ?>" defer></script>
+  <script src="<?= e(asset('assets/js/lightbox.js')) ?>" defer></script>
 </body>
 </html>

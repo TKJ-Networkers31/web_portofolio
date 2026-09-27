@@ -13,6 +13,21 @@ declare(strict_types=1);
  *
  * FINAL QA: menambahkan submitContactMessage() di paling bawah file
  * (item #4 — Send Message). Tidak ada fungsi lain yang diubah.
+ *
+ * FIX (setelah Phase 5.3 — laporan "message gak ke migrate"):
+ * submitContactMessage() sebelumnya menulis ke tabel bernama `messages`,
+ * padahal database/schema-sqlite.sql dan schema-mysql.sql hanya pernah
+ * mendefinisikan tabel `contact_messages`. Tabel `messages` memang tidak
+ * pernah ada di schema manapun, jadi INSERT selalu gagal (silent —
+ * fungsi ini return false, ditangkap index.php sebagai "couldn't be
+ * sent"). Diperbaiki: INSERT sekarang ke `contact_messages`, sama
+ * dengan yang benar-benar dibuat oleh migrasi. Lihat juga
+ * public_html/admin/messages.php yang mengalami bug sama.
+ *
+ * PHASE 5.3 addition: publicAssetUrl() — helper kecil supaya sisi
+ * publik (index.php) bisa menampilkan profile.photo_path tanpa perlu
+ * me-require app/helpers.php (file itu memang dikunci untuk konteks
+ * admin/CMS_BOOT saja, lihat app/helpers.php).
  */
 
 if (!defined('SITE_BOOT')) {
@@ -238,6 +253,29 @@ SVG;
 </svg>
 SVG;
         }
+    }
+}
+
+if (!function_exists('publicAssetUrl')) {
+    /**
+     * Root-absolute URL for a stored asset path (e.g. profile.photo_path),
+     * or the original URL as-is if it's already absolute (http/https).
+     * Mirrors app/helpers.php::publicMediaUrl() but usable from the
+     * public (SITE_BOOT) side, which never loads app/helpers.php
+     * directly (that file is guarded to the admin-only CMS_BOOT context).
+     */
+    function publicAssetUrl(string $path): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://#i', $path) === 1) {
+            return $path;
+        }
+
+        return '/' . ltrim(str_replace('\\', '/', $path), '/');
     }
 }
 
@@ -728,11 +766,18 @@ if (!function_exists('submitContactMessage')) {
      *
      * Fix: form nyata di index.php (lihat section Contact) submit ke
      * index.php sendiri (POST), diproses fungsi ini. Pesan disimpan ke
-     * tabel `messages` (baru, additive — lihat database/schema-*.sql)
-     * lewat koneksi yang sama dengan getDbForPublicRead(), supaya sisi
-     * publik tetap degrade aman jika DB/tabel belum ada — TIDAK PERNAH
-     * melaporkan sukses palsu: return false berarti index.php harus
-     * menampilkan pesan gagal, bukan berpura-pura terkirim.
+     * tabel `contact_messages` (sudah ada di database/schema-*.sql sejak
+     * Phase 4.1) lewat koneksi yang sama dengan getDbForPublicRead(),
+     * supaya sisi publik tetap degrade aman jika DB/tabel belum ada —
+     * TIDAK PERNAH melaporkan sukses palsu: return false berarti
+     * index.php harus menampilkan pesan gagal, bukan berpura-pura
+     * terkirim.
+     *
+     * FIX (pasca Phase 5.3): sebelumnya fungsi ini menulis ke tabel
+     * bernama `messages`, yang TIDAK PERNAH ada di schema manapun
+     * (schema hanya mendefinisikan `contact_messages`) — sehingga INSERT
+     * selalu gagal diam-diam. Sekarang menulis ke `contact_messages`,
+     * nama tabel yang benar-benar dibuat oleh migrasi.
      *
      * @return bool true hanya jika baris benar-benar tersimpan di DB.
      */
@@ -752,12 +797,13 @@ if (!function_exists('submitContactMessage')) {
         }
 
         try {
-            // Additive schema (database/schema-sqlite.sql + schema-mysql.sql):
-            // CREATE TABLE IF NOT EXISTS messages(...). Jika migrasi belum
-            // dijalankan di server ini, INSERT akan gagal dan kita
-            // melaporkan gagal apa adanya — bukan sukses palsu.
+            // contact_messages sudah dibuat oleh database/migrate.php
+            // (schema-sqlite.sql / schema-mysql.sql, Phase 4.1). Jika
+            // migrasi belum pernah dijalankan di server ini, INSERT akan
+            // gagal dan kita melaporkan gagal apa adanya — bukan sukses
+            // palsu.
             $stmt = $pdo->prepare(
-                'INSERT INTO messages (name, email, message) VALUES (:name, :email, :message)'
+                'INSERT INTO contact_messages (name, email, message) VALUES (:name, :email, :message)'
             );
 
             return $stmt->execute([

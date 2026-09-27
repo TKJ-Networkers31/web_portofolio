@@ -1,0 +1,9 @@
+Placeholder so this directory exists in version control / your deploy
+zip. config/config.php creates it automatically at runtime if missing
+and PHP can write here, but committing an empty dir ahead of time avoids
+relying on that on hosts where the storage/ parent itself is writable
+but mkdir() is restricted for some reason.
+
+Already covered by storage/.htaccess (Require all denied) one level up
+— Apache applies that recursively to this subdirectory too, so session
+data here is not web-accessible, same as portfolio.sqlite next to it.
